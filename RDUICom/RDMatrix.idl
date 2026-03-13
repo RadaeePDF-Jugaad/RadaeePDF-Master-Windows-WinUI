@@ -1,0 +1,19 @@
+import "RDGlobal.idl";
+import "RDPath.idl";
+import "RDInk.idl";
+
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass RDMatrix
+    {
+        RDMatrix(Single scalex, Single scaley, Single x0, Single y0);
+        RDMatrix(Single xx, Single yx, Single xy, Single yy, Single x0, Single y0);
+        Int64 Handle{ get; };
+        void Invert();
+        void TransformPath(RDPath path);
+        void TransformInk(RDInk ink);
+        RDRect TransformRect(RDRect rect);
+        RDPoint TransformPoint(RDPoint point);
+    }
+}

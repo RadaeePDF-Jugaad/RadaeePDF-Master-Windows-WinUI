@@ -1,0 +1,9 @@
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFSign
+    {
+        PDFSign(Int64 hand);
+        Int64 Handle{ get; };
+    }
+}

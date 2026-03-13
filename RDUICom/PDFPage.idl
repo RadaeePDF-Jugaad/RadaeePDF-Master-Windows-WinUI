@@ -1,0 +1,99 @@
+import "RDGlobal.idl";
+import "RDMatrix.idl";
+import "PDFDocForm.idl";
+import "PDFDocFont.idl";
+import "PDFDocGState.idl";
+import "PDFDocImage.idl";
+import "PDFResForm.idl";
+import "PDFResFont.idl";
+import "PDFResGState.idl";
+import "PDFResImage.idl";
+import "PDFPageContent.idl";
+import "PDFAnnot.idl";
+import "PDFFinder.idl";
+import "PDFEditNode.idl";
+import "PDFPageTag.idl";
+import "PDFDocTag.idl";
+import "RDDIB.idl";
+import "RDSoftBmp.idl";
+import "RDBmp.idl";
+
+namespace RDUILib
+{
+	enum RD_RENDER_MODE
+	{
+		mode_poor = 0,
+		mode_normal = 1,
+		mode_best = 2
+	};
+
+
+	[default_interface]
+	runtimeclass PDFPage
+    {
+        PDFPage(Int64 hand);
+        void Close();
+		Int64 Handle();
+        RDRect CropBox{ get; };
+        RDRect MediaBox{ get; };
+        RDRect GetContentBox();
+		Boolean AddAnnotAttachment(RDRect rect, String path, Int32 icon);
+		Boolean AddAnnotBitmap(PDFDocImage img, RDRect rect);
+		Boolean AddAnnotBitmap(PDFDocImage img, RDMatrix mat, RDRect rect);
+		Boolean AddAnnotEditbox(RDRect rect, UInt32 line_clr, Single line_w, UInt32 fill_clr, Single tsize, UInt32 text_clr);
+		Boolean AddAnnotEllipse(RDRect rect, Single width, UInt32 color, UInt32 icolor);
+		Boolean AddAnnotInk(RDInk ink);
+		Boolean AddAnnotLine(Single x1, Single y1, Single x2, Single y2, Int32 style1, Int32 style2, Single width, UInt32 color, UInt32 icolor);
+		Boolean AddAnnotMarkup(Int32 ci1, Int32 ci2, UInt32 color, Int32 type);
+		Boolean AddAnnotPolygon(RDPath path, UInt32 color, UInt32 fill_color, Single width);
+		Boolean AddAnnotPolyline(RDPath path, UInt32 color, Int32 style1, Int32 style2, UInt32 fill_color, Single width);
+		Boolean AddAnnotPopup(PDFAnnot parent, RDRect rect, Boolean open);
+		Boolean AddAnnotRect(RDRect rect, Single width, UInt32 color, UInt32 icolor);
+		Boolean AddAnnotRichMedia(String path_player, String path_content, Int32 type, PDFDocImage img, RDRect rect);
+		Boolean AddAnnotTextNote(Single x, Single y);
+		Boolean AddAnnotURI(RDRect rect, String uri);
+		Boolean AddContent(PDFPageContent content, Boolean flush);
+		Boolean AddFieldCheck(RDRect rect, String name, String val, PDFDocForm app_on, PDFDocForm app_off);
+		Boolean AddFieldCombo(RDRect rect, String name, String[] opts);
+		Boolean AddFieldEditbox(RDRect rect, String name, Boolean multi_line, Boolean password);
+		Boolean AddFieldList(RDRect rect, String name, String[] opts, Boolean multi_sel);
+		Boolean AddFieldRadio(RDRect rect, String name, String val, PDFDocForm app_on, PDFDocForm app_off);
+		Boolean AddFieldSign(RDRect rect, String name);
+		PDFResFont AddResFont(PDFDocFont font);
+		PDFResForm AddResForm(PDFDocForm form);
+		PDFResGState AddResGState(PDFDocGState gs);
+		PDFResImage AddResImage(PDFDocImage image);
+		Boolean CancelWithPGEditor();
+		Boolean FlatAnnots();
+		PDFAnnot GetAnnot(Single x, Single y);
+		PDFAnnot GetAnnot(Int32 index);
+		PDFFinder GetFinder(String key, Boolean match_case, Boolean whole_word);
+		PDFFinder GetFinder(String key, Boolean match_case, Boolean whole_word, Boolean skip_blanks);
+		PDFEditNode GetPGEditorNode(Single pdfx, Single pdfy);
+		PDFEditNode GetPGEditorNode(Int32 index);
+		Boolean ImportAnnot(RDRect rect, UInt8[] buf, Int32 buf_len);
+		PDFPageTag NewTagBlock(PDFDocTag parent, String stag);
+		Boolean Reflow(RDDIB dib, Single orgx, Single orgy);
+		Single ReflowStart(Single width, Single ratio, Boolean reflow_images);
+		Boolean ReflowToBmp(RDSoftBmp bmp, Single orgx, Single orgy);
+		Boolean Render(RDDIB dib, RDMatrix mat, Boolean show_annot, RD_RENDER_MODE mode);
+		void RenderCancel();
+		Boolean RenderIsFinished();
+		void RenderPrepare();
+		void RenderPrepare(RDDIB dib);
+		Boolean RenderToBmp(RDBmp bmp, RDMatrix mat, Boolean show_annot, RD_RENDER_MODE mode);
+		Boolean RenderToSoftBmp(RDSoftBmp bmp, RDMatrix mat, Boolean show_annot, RD_RENDER_MODE mode);
+		Boolean RenderWithPGEditor(RDDIB dib, RDMatrix mat, Int32 quality);
+		void SetPGEditorModified(Boolean modified);
+		Int32 Sign(PDFDocForm form, RDRect rect, String cert_file, String pswd, String name, String reason, String location, String contact);
+		Boolean UpdateWithPGEditor();
+		void ObjsStart();
+		Int32 ObjsGetCharCount();
+		String ObjsGetCharFontName(Int32 index);
+		String ObjsGetString(Int32 from, Int32 to);
+		Boolean ObjsRemove(Int32[] ranges, Boolean reload);
+		Boolean ObjsSetImageJPEG(Int32 index, String path, Boolean interpolate);
+		RDRect ObjsGetCharRect(Int32 index);
+		Int32 ObjsAlignWord(Int32 index, Int32 dir);
+	}
+}

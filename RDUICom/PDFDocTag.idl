@@ -1,0 +1,9 @@
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFDocTag
+    {
+		PDFDocTag(Int64 hand);
+        Int64 Handle{ get; };
+    }
+}

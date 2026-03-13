@@ -1,0 +1,39 @@
+namespace RDUILib
+{
+    interface IRDDelegate
+    {
+		Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap OnCreateBitmap(Int32 width, Int32 height);
+        Windows.Storage.Streams.IBuffer OnGetBitmapBuffer(Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap bmp);
+    };
+    struct RDPoint
+    {
+        Single x;
+        Single y;
+    };
+    struct RDRect
+    {
+        Single left;
+        Single top;
+        Single right;
+        Single bottom;
+    };
+    [default_interface]
+    runtimeclass RDGlobal
+    {
+        static Int32 Active(String serial);
+        static String GetVersion();
+        static void SetCMapsPath(String cpath, String upath);
+        static Boolean SetCMYKICC(String path);
+        static void FontFileListStart();
+        static void FontFileListAdd(String path);
+        static void FontFileListEnd();
+        static Boolean FontFileMapping(String map_name, String name);
+        static Int32 GetFaceCount();
+        static String GetFaceName(Int32 index);
+        static Boolean SetDefaultFont(String collection, String name, Boolean fixed);
+        static Boolean SetAnnotFont(String name);
+        static void SetAnnotTransparence(UInt32 color);
+        static void LoadStdFont(Int32 index, String path);
+        //static Boolean DrawDash(float[] dash, int dashCount, WriteableBitmap dib);
+    }
+}

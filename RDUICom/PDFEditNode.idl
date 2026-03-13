@@ -1,0 +1,35 @@
+import "RDGlobal.idl";
+
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFEditNode
+    {
+        PDFEditNode(Int64 hand);
+        Int64 Handle{ get; };
+		static void SetDefFont(String fname);
+		static void SetDefCJKFont(String fname);
+		static Boolean caret_is_end(Int64 pos);
+		static Boolean caret_is_vert(Int64 pos);
+		static Boolean caret_is_same(Int64 pos0, Int64 pos1);
+		static Int64 caret_regular_end(Int64 pos);
+		static Boolean caret_is_first(Int64 pos);
+		Int64 caret_regular_start(Int64 pos);
+		Int64 GetCharPos(Single pdfx, Single pdfy);
+		Int64 GetCharPrev(Int64 pos);
+		Int64 GetCharNext(Int64 pos);
+		Int64 GetCharPrevLine(Single y, Int64 pos);
+		Int64 GetCharNextLine(Single y, Int64 pos);
+		RDRect GetCharRect(Int64 pos);
+		void CharDelete(Int64 start, Int64 end);
+		String CharGetString(Int64 start, Int64 end);
+		void CharReturn(Int64 pos);
+		Int64 CharInsert(Int64 pos, String sval);
+		Int64 CharHome(Int64 pos);
+		Int64 CharEnd(Int64 pos);
+		Int32 Type{ get; };
+		RDRect Rect{ get; set; };
+		void UpdateRect();
+		void Delete();
+	}
+}

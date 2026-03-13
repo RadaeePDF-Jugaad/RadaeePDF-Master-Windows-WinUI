@@ -1,0 +1,24 @@
+import "PDFDocFont.idl";
+import "PDFDocGState.idl";
+import "PDFDocImage.idl";
+import "PDFResForm.idl";
+import "PDFResFont.idl";
+import "PDFResGState.idl";
+import "PDFResImage.idl";
+import "PDFPageContent.idl";
+
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFDocForm
+    {
+        PDFDocForm(Int64 doc, Int64 hand);
+        Int64 Handle{ get; };
+		PDFResForm AddResForm(PDFDocForm sub);
+		PDFResFont AddResFont(PDFDocFont font);
+		PDFResGState AddResGState(PDFDocGState gs);
+		PDFResImage AddResImage(PDFDocImage img);
+		void SetContent(PDFPageContent content, Single x, Single y, Single w, Single h);
+		void SetTransparency(Boolean isolate, Boolean knockout);
+	}
+}

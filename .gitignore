@@ -1,0 +1,9 @@
+lib/arm64/RDUId.lib
+lib/win32/RDUId.lib
+lib/x64/RDUId.lib
+
+# file di libreria gestiti tramite Git LFS (pattern generale)
+lib/**/*.lib
+
+# cache / database di Visual Studio
+RDUICom/.vs/

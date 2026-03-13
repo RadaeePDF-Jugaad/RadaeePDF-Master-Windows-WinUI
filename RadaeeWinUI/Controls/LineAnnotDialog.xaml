@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="RadaeeWinUI.Controls.LineAnnotDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Edit Line Annotation"
+    PrimaryButtonText="OK"
+    SecondaryButtonText="Delete"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    SecondaryButtonClick="OnDeleteButtonClick">
+
+    <StackPanel Spacing="16" MinWidth="400">
+        
+        <!-- Stroke Width -->
+        <StackPanel Spacing="8">
+            <TextBlock Text="Stroke Width:" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <Slider x:Name="StrokeWidthSlider"
+                        Grid.Column="0"
+                        Minimum="0.5"
+                        Maximum="10"
+                        StepFrequency="0.5"
+                        TickFrequency="0.5"
+                        TickPlacement="BottomRight"
+                        ValueChanged="OnStrokeWidthChanged"/>
+                <TextBlock Grid.Column="1" 
+                           x:Name="StrokeWidthText"
+                           Text="2.0"
+                           Width="40"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Stroke Color -->
+        <StackPanel Spacing="8">
+            <TextBlock Text="Stroke Color:" FontWeight="SemiBold"/>
+            <ColorPicker x:Name="StrokeColorPicker"
+                         ColorSpectrumShape="Ring"
+                         IsMoreButtonVisible="False"
+                         IsColorSliderVisible="True"
+                         IsColorChannelTextInputVisible="True"
+                         IsHexInputVisible="True"
+                         IsAlphaEnabled="False"/>
+        </StackPanel>
+
+        <!-- Transparency -->
+        <StackPanel Spacing="8">
+            <TextBlock Text="Transparency:" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <Slider x:Name="TransparencySlider"
+                        Grid.Column="0"
+                        Minimum="0"
+                        Maximum="255"
+                        StepFrequency="1"
+                        TickFrequency="25.5"
+                        TickPlacement="BottomRight"
+                        ValueChanged="OnTransparencyChanged"/>
+                <TextBlock Grid.Column="1" 
+                           x:Name="TransparencyText"
+                           Text="100%"
+                           Width="50"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Line Style -->
+        <StackPanel Spacing="8">
+            <TextBlock Text="Line Style:" FontWeight="SemiBold"/>
+            <ComboBox x:Name="LineStyleComboBox" 
+                      HorizontalAlignment="Stretch"
+                      SelectedIndex="0">
+                <ComboBoxItem Content="Solid" Tag="0"/>
+                <ComboBoxItem Content="Dashed" Tag="1"/>
+                <ComboBoxItem Content="Beveled" Tag="2"/>
+                <ComboBoxItem Content="Inset" Tag="3"/>
+                <ComboBoxItem Content="Underline" Tag="4"/>
+            </ComboBox>
+        </StackPanel>
+
+    </StackPanel>
+</ContentDialog>

@@ -1,0 +1,13 @@
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFDocGState
+    {
+        PDFDocGState(Int64 doc, Int64 hand);
+        Int64 Handle{ get; };
+        void SetFillAlpha(Int32 alpha);
+        void SetStrokeAlpha(Int32 alpha);
+        void SetStrokeDash(Single[] dash, Single phase);
+        void SetBlendMode(Int32 bmode);
+    }
+}

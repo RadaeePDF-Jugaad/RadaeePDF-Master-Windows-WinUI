@@ -1,0 +1,17 @@
+import "RDGlobal.idl";
+
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass RDInk
+    {
+        RDInk(Single lw, UInt32 color);
+        Int64 Handle{ get; };
+		void Down(Single x, Single y);
+		void Move(Single x, Single y);
+		void Up(Single x, Single y);
+		Int32 NodesCnt{ get; };
+		Int32 GetOP(Int32 index);
+		RDPoint GetPoint(Int32 index);
+	}
+}

@@ -1,0 +1,11 @@
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFDocFont
+    {
+        PDFDocFont(Int64 doc, Int64 hand);
+        Single Ascent{ get; };
+        Single Descent{ get; };
+        Int64 Handle{ get; };
+    }
+}

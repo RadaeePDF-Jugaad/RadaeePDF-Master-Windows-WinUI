@@ -1,0 +1,110 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resources">
+      <UniqueIdentifier>accd3aa8-1ba0-4223-9bbe-0c431709210b</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{926ab91d-31b4-48c3-b9a4-e681349f27f0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="PDFDoc.cpp" />
+    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
+    <ClCompile Include="PDFPage.cpp" />
+    <ClCompile Include="RDGlobal.cpp" />
+    <ClCompile Include="PDFOutline.cpp" />
+    <ClCompile Include="PDFDocTag.cpp" />
+    <ClCompile Include="PDFSign.cpp" />
+    <ClCompile Include="PDFDocFont.cpp" />
+    <ClCompile Include="PDFDocForm.cpp" />
+    <ClCompile Include="PDFDocGState.cpp" />
+    <ClCompile Include="PDFDocImage.cpp" />
+    <ClCompile Include="PDFImportor.cpp" />
+    <ClCompile Include="PDFResFont.cpp" />
+    <ClCompile Include="PDFResForm.cpp" />
+    <ClCompile Include="PDFResGState.cpp" />
+    <ClCompile Include="PDFResImage.cpp" />
+    <ClCompile Include="PDFPageContent.cpp" />
+    <ClCompile Include="PDFAnnot.cpp" />
+    <ClCompile Include="RDDIB.cpp" />
+    <ClCompile Include="RDMatrix.cpp" />
+    <ClCompile Include="RDPath.cpp" />
+    <ClCompile Include="RDInk.cpp" />
+    <ClCompile Include="PDFFinder.cpp" />
+    <ClCompile Include="PDFEditNode.cpp" />
+    <ClCompile Include="PDFPageTag.cpp" />
+    <ClCompile Include="RDSoftBmp.cpp" />
+    <ClCompile Include="RDBmp.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="UICom.h" />
+    <ClInclude Include="UIDOCX.h" />
+    <ClInclude Include="UIPDF.h" />
+    <ClInclude Include="PDFPage.h" />
+    <ClInclude Include="RDGlobal.h" />
+    <ClInclude Include="PDFOutline.h" />
+    <ClInclude Include="PDFDocTag.h" />
+    <ClInclude Include="PDFSign.h" />
+    <ClInclude Include="PDFDocFont.h" />
+    <ClInclude Include="PDFDocForm.h" />
+    <ClInclude Include="PDFDocGState.h" />
+    <ClInclude Include="PDFDocImage.h" />
+    <ClInclude Include="PDFImportor.h" />
+    <ClInclude Include="PDFResFont.h" />
+    <ClInclude Include="PDFResForm.h" />
+    <ClInclude Include="PDFResGState.h" />
+    <ClInclude Include="PDFResImage.h" />
+    <ClInclude Include="PDFPageContent.h" />
+    <ClInclude Include="PDFAnnot.h" />
+    <ClInclude Include="RDDIB.h" />
+    <ClInclude Include="RDMatrix.h" />
+    <ClInclude Include="RDPath.h" />
+    <ClInclude Include="RDInk.h" />
+    <ClInclude Include="PDFFinder.h" />
+    <ClInclude Include="PDFEditNode.h" />
+    <ClInclude Include="PDFPageTag.h" />
+    <ClInclude Include="RDSoftBmp.h" />
+    <ClInclude Include="RDBmp.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RDUICom.def" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PropertySheet.props" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Midl Include="PDFPage.idl" />
+    <Midl Include="RDGlobal.idl" />
+    <Midl Include="PDFOutline.idl" />
+    <Midl Include="PDFDocTag.idl" />
+    <Midl Include="PDFSign.idl" />
+    <Midl Include="PDFDocFont.idl" />
+    <Midl Include="PDFDocForm.idl" />
+    <Midl Include="PDFDocGState.idl" />
+    <Midl Include="PDFDocImage.idl" />
+    <Midl Include="PDFImportor.idl" />
+    <Midl Include="PDFResFont.idl" />
+    <Midl Include="PDFResForm.idl" />
+    <Midl Include="PDFResGState.idl" />
+    <Midl Include="PDFResImage.idl" />
+    <Midl Include="PDFPageContent.idl" />
+    <Midl Include="PDFAnnot.idl" />
+    <Midl Include="RDDIB.idl" />
+    <Midl Include="RDMatrix.idl" />
+    <Midl Include="RDPath.idl" />
+    <Midl Include="RDInk.idl" />
+    <Midl Include="PDFFinder.idl" />
+    <Midl Include="PDFEditNode.idl" />
+    <Midl Include="PDFPageTag.idl" />
+    <Midl Include="RDSoftBmp.idl" />
+    <Midl Include="RDBmp.idl" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFOutline
+    {
+        PDFOutline(Int64 doc, Int64 hand);
+		PDFOutline Next{ get; };
+		PDFOutline Child{ get; };
+		Boolean AddNext(String label, Int32 dest, Single y);
+		Boolean AddChild(String label, Int32 dest, Single y);
+		Boolean RemoveFromDoc();
+		String label{ get; };
+		Int32 dest{ get; };
+	}
+}

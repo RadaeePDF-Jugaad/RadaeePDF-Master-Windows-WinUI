@@ -1,0 +1,66 @@
+import "PDFDocTag.idl";
+import "PDFOutline.idl";
+import "PDFPage.idl";
+import "PDFSign.idl";
+import "PDFDocForm.idl";
+import "PDFDocFont.idl";
+import "PDFDocImage.idl";
+import "PDFDocGState.idl";
+import "PDFImportor.idl";
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFDoc
+    {
+        PDFDoc();
+        Int64 Handle{ get; };
+        static void SetOpenFlag(Int32 flag);
+        Int32 CreatePath(String path);
+        Int32 Create(Windows.Storage.Streams.IRandomAccessStream stream);
+        Int32 OpenPath(String path, String password);
+        Int32 Open(Windows.Storage.Streams.IRandomAccessStream stream, String password);
+        Int32 PageCount{ get; };
+        Single GetPageWidth(Int32 pageno);
+        Single GetPageHeight(Int32 pageno);
+        PDFPage GetPage(Int32 pageno);
+        void Close();
+        PDFOutline GetRootOutline();
+        Boolean AddRootOutline(String label, Int32 dest, Single y);
+        Int32 Permission{ get; };
+        String XMP{ get; };
+        Int32 Perm{ get; };
+        Int32 EFCount{ get; };
+        String GetEFDesc(Int32 index);
+        String GetEFName(Int32 index);
+        Boolean GetEFData(Int32 index, String path);
+        Boolean DelEFData(Int32 index);
+        Boolean NewEF(String path);
+        Int32 JSCount{ get; };
+        String GetJS(Int32 index);
+        String GetJSName(Int32 index);
+        Boolean CanSave{ get; };
+        Boolean IsEncrypted{ get; };
+        Boolean IsOpened{ get; };
+        PDFDocTag NewTagGroup(PDFDocTag parent, String stag);
+        Int32 VerifySign(PDFSign sign);
+        PDFPage NewPage(Int32 pageno, Single w, Single h);
+        Boolean RemovePage(Int32 pageno);
+        Boolean MovePage(Int32 srcno, Int32 dstno);
+
+        PDFImportor ImportStart(PDFDoc src);
+        PDFDocImage NewImage0(Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap bitmap, Boolean has_alpha, Boolean interpolate);
+        PDFDocImage NewImage1(Windows.Graphics.Imaging.SoftwareBitmap bitmap, Boolean has_alpha, Boolean interpolate);
+        PDFDocImage NewImage2(Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap bitmap, Int32 matte, Boolean interpolate);
+        PDFDocImage NewImage3(Windows.Graphics.Imaging.SoftwareBitmap bitmap, Int32 matte, Boolean interpolate);
+        PDFDocImage NewImageJPEG(String path, Boolean interpolate);
+        PDFDocImage NewImageJPX(String path, Boolean interpolate);
+        PDFDocFont NewFontCID(String name, Int32 style);
+        PDFDocGState NewGState();
+        PDFDocForm NewForm();
+        Boolean Save();
+        Boolean SaveAs(String path);
+        Boolean SaveAs(String path, UInt8[] opts, Single img_dpi);
+        Boolean SetMeta(String tag, String val);
+        Boolean SetPageRotate(Int32 pageno, Int32 degree);
+    }
+}

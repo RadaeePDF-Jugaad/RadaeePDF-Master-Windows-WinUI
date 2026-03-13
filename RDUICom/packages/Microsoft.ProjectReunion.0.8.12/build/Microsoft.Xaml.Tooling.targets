@@ -1,0 +1,30 @@
+<!--
+  Copyright (c) Microsoft Corporation. Licensed under the MIT License
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <Target Name="ReferenceCopyXamlToolingLibs"
+        Condition="('$(ProjectReunionWinUI)'=='true' or '$(MSBuildProjectExtension)'=='.wapproj') and
+            ('$(Platform)'=='Win32' or '$(Platform)'=='x86' or '$(Platform)'=='x64' or '$(Platform)'=='arm64') and
+            '$(MSBuildVersion)'&lt;'16.10' and '$(ProjectReunionCopyXamlToolingLibs)'!='false' and '$(OutputType)'!='Library'"
+        AfterTargets="ResolveReferences">
+    <PropertyGroup>
+      <NativePlatform Condition="'$(Platform)' == 'Win32'">x86</NativePlatform>
+      <NativePlatform Condition="'$(Platform)' != 'Win32'">$(Platform)</NativePlatform>
+      <MicrosoftProjectReunionAppxContent>$([MSBuild]::NormalizeDirectory('$(ProjectDir)','$(OutDir)'))AppxContent</MicrosoftProjectReunionAppxContent>
+    </PropertyGroup>
+    <ItemGroup>
+      <MicrosoftProjectReunionAppx Include="$(MSBuildThisFileDirectory)..\tools\MSIX\win10-$(NativePlatform)\Microsoft.ProjectReunion.*.msix"/>
+    </ItemGroup>
+    <Unzip
+        SourceFiles="@(MicrosoftProjectReunionAppx)"
+        DestinationFolder="$(MicrosoftProjectReunionAppxContent)"
+        SkipUnchangedFiles="true"
+        OverwriteReadOnlyFiles="true" />
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Include="$(MicrosoftProjectReunionAppxContent)\Microsoft.Internal.FrameworkUdk.dll" />
+      <ReferenceCopyLocalPaths Include="$(MicrosoftProjectReunionAppxContent)\Microsoft.ui.xaml.dll" />
+    </ItemGroup>
+  </Target>
+
+</Project>

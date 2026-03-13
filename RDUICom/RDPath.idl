@@ -1,0 +1,18 @@
+import "RDGlobal.idl";
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass RDPath
+    {
+        RDPath();
+		RDPath(Int64 hand);
+		Int64 Handle{ get; };
+		void MoveTo(Single x, Single y);
+		void LineTo(Single x, Single y);
+		void CurveTo(Single x1, Single y1, Single x2, Single y2, Single x3, Single y3);
+		void Close();
+		Int32 NodesCnt{ get; };
+		Int32 GetOP(Int32 index);
+		RDPoint GetPoint(Int32 index);
+	}
+}

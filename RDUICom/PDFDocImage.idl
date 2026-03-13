@@ -1,0 +1,9 @@
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFDocImage
+    {
+        PDFDocImage(Int64 hand);
+        Int64 Handle{ get; };
+    }
+}

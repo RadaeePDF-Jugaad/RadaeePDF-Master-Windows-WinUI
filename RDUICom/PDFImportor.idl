@@ -1,0 +1,12 @@
+import "RDGlobal.idl";
+namespace RDUILib
+{
+    [default_interface]
+    runtimeclass PDFImportor
+    {
+        PDFImportor(Int64 doc, Int64 hand);
+        Int64 Handle{ get; };
+        Boolean ImportPage(Int32 srcno, Int32 dstno);
+        Boolean ImportPage2Page(Int32 srcno, Int32 dstno, RDRect rect);
+    }
+}
