@@ -1,5 +1,5 @@
 # RadaeePDF SDK Master for Windows (WinUI 3 - Beta)
-<img src="https://www.radaeepdf.com/images/logo/logo-butterfly-only.png" style="width:100px;">
+<img src="https://www.radaeepdf.com/wp-content/uploads/2024/08/solo_butterly_midres.png" style="width:100px;"> 
 
 > **DISCLAIMER (BETA)**  
 > This repository contains the **WinUI 3** version of the RadaeePDF Windows demo and is currently in **BETA**.  
