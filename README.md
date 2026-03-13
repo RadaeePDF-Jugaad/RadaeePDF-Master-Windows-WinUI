@@ -6,11 +6,11 @@
 > The API surface, project structure, and some features are subject to change without notice.  
 > Do **not** use this version in production without thoroughly testing it in your own environment.
 
-RadaeePDF SDK is a powerful, native PDF rendering and manipulation library for Android applications. Built from true native C++ code, it provides exceptional performance and a comprehensive set of features for working with PDF documents.
+RadaeePDF SDK is a powerful, native PDF rendering and manipulation library for Android, iOS, and Windows UI applications. Built from true native C++ code, it provides exceptional performance and a comprehensive set of features for working with PDF documents.
 
 ## About RadaeePDF
 
-RadaeePDF SDK is designed to solve most developers' needs with regards to PDF rendering and manipulation. The SDK is trusted across industries worldwide including automotive, banking, publishing, healthcare, and more.
+RadaeePDF SDK is designed to solve most developers' needs regard to PDF rendering and manipulation. The SDK is trusted across industries worldwide including automotive, banking, publishing, healthcare, and more.
 
 ### Key Features
 
@@ -30,7 +30,7 @@ Before running the demo, ensure you have the following installed:
 
 ### Visual Studio Requirements
 - **Visual Studio 2022** (or later) with the following workloads:
-  - **.NET desktop development** - For WinUI 3, WPF, Windows Forms, and console applications with C#, Visual Basic, and F# with .NET Framework
+  - **WinUI desktop development** - Desktop development with WinUI 3 and C#, optionally for C++
   - **Desktop development with C++** - With C++ (v143) tools for native components
   
 ### Windows SDK
@@ -110,14 +110,18 @@ To quickly test the RadaeePDF SDK demo:
      ```
 
 3. **Open the Solution**
-   - Visual Studio should automatically open the `RDDMaster.sln` solution file
-   - If not, navigate to the cloned folder and double-click `RDDMaster.sln`
+   - Visual Studio should automatically open the `RadaeeWinUI.sln` solution file
+   - If not, navigate to the cloned folder and double-click `RadaeeWinUI.sln`
 
 4. **Configure Build Settings**
    - In the toolbar, set the platform to **x86** (or other platform based on your system)
    - Set the configuration to **Debug** or **Release**
 
-5. **Build and Run**
+5. **Build library project**
+   - In solution explorer, right click on project "RDUICom" and select **Build**
+   - Wait for the build to complete
+
+6. **Build and Run the Demo**
    - Press **F5** or click the **Start** button (▶) to build and run the demo
    - The WinUI 3 application will launch on your local machine
 
@@ -131,13 +135,12 @@ To quickly test the RadaeePDF SDK demo:
 
 Before using RadaeePDF, initialize the library with your license key:
 
-1. Modify the 'PDFGlobal.cs' file under namespace 'com.radaee.master', to add your license key:
+1. Modify the 'RDGlobal.cs' file under namespace 'com.radaee.master', to add your license key:
 ```csharp
 static public bool init()
 {
     load_data();
-    int ret = RDGlobal.ActiveLicense("[YOUR-LICENSE-KEY]");
-    RadaeeFTSManager.Init();
+    int ret = RDUILib.RDGlobal.Active("[YOUR-LICENSE-KEY]");
     return ret == 3;
 }
 ```
@@ -151,7 +154,7 @@ sealed partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs e)
     {
         //...... your code
-        PDFGlobal.init();
+        RDGlobal.init();
         //...... your code
     }
 }
@@ -199,14 +202,7 @@ public sealed partial class PDFReaderPage : Page, IPDFViewListener, IThumbListen
                 break;
             case RD_ERROR.err_ok:
                 //success
-                m_reader = new PDFReader();
-
-                //mView: RelativePanel control in XAML
-                m_reader.PDFOpen(mView, m_doc, RDLAYOUT_MODE.layout_vert, this);
-
-                //mThumb: RelativePanel control in XAML
-                m_thumb = new PDFThumb();
-                m_thumb.PDFOpen(mThumb, m_doc, this);
+                _pdfViewModel.OnDocumentLoaded(_currentDocument);
                 break;
             default:
                 //Unknown error
@@ -227,29 +223,13 @@ int pageCount = m_doc.PageCount;
 ### Navigate to a Specific Page
 
 ```csharp
-m_reader.PDFGotoPage(5); // Go to page 5
+ViewModel.GoToPage(5); // Go to page 5
 ```
 
 ### Set View Mode
 
 ```csharp
-m_reader.PDFViewMode = RDLAYOUT_MODE.layout_vert; // Vertical scroll mode
-```
-
-### Text Search (Professional License)
-
-```csharp
-// Start search
-boolean match_case = false;
-boolean match_whole_word = false;
-m_reader.PDFFindStart("search_term", match_case, match_whole_word);
-
-// Find next/previous occurrence
-int dir = 1; // 1 = next, -1 = previous
-m_reader.PDFFind(dir);
-
-// End search and reset
-m_reader.PDFFindEnd();
+ViewModel.PDFViewModel.SwitchViewMode(ViewMode.VerticalContinuous); // Vertical scroll mode
 ```
 
 ### Text Highlighting (Professional License)
@@ -257,16 +237,16 @@ m_reader.PDFFindEnd();
 ```csharp
 uint color = 0xFFFFFF00; // Yellow color
 // Highlight selected text
-m_reader.PDFSetSelMarkup(0, color); // 0 = highlight
+PDFSel.SetSelMarkup(AnnotationType.Highlight); // highlight
 
 // Underline selected text
-m_reader.PDFSetSelMarkup(1, color); // 1 = underline
+PDFSel.SetSelMarkup(AnnotationType.Underline); // underline
 
 // Strikeout selected text
-m_reader.PDFSetSelMarkup(2, color); // 2 = strikeout
+PDFSel.SetSelMarkup(AnnotationType.Strikeout); // strikeout
 
 // Rod squiggly selected text
-m_reader.PDFSetSelMarkup(4, color); // 4 = rod squiggly
+PDFSel.SetSelMarkup(AnnotationType.Squiggly); // rod squiggly
 ```
 
 ### Add Annotations (Professional License)
