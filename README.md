@@ -163,50 +163,50 @@ sealed partial class App : Application
 ### Open and Display a PDF
 
 ```csharp
-using com.radaee.master;
-using RDDLib.comm;
-using RDDLib.pdf;
-using RDDLib.pdfv;
-using RDDLib.reader;
-using RDPDFMaster;
-using RDPDFMaster.Modules.FTS;
-using RDPDFMaster.PDFReaderPage;
-using RDPDFMaster.util;
-using RDPDFReader.annotui;
+using RadaeeWinUI.Helpers;
 
-public sealed partial class PDFReaderPage : Page, IPDFViewListener, IThumbListener
+public sealed partial class MainViewModel : ObservableObject
 {
-    private PDFReader m_reader;
-    private PDFThumb m_thumb;
-    private PDFDoc m_doc;
-    private void file_open(IRandomAccessStream stream, String password)
+    private readonly IDocumentManager _documentManager;
+    private readonly INavigationService _navigationService;
+    private readonly PDFViewModel _pdfViewModel;
+
+    private PDFDoc? _currentDocument;
+    private DocumentInfo? _documentInfo;
+    private bool _isDocumentLoaded;
+
+    public MainViewModel(
+    IDocumentManager documentManager,
+    INavigationService navigationService,
+    PDFViewModel pdfViewModel)
     {
-        m_doc = new PDFDoc();
-        RD_ERROR err = m_doc.Open(stream, password);
-        switch (err)
+        _documentManager = documentManager;
+        _navigationService = navigationService;
+        _pdfViewModel = pdfViewModel;
+
+        _pdfViewModel.CurrentPageChanged += _pdfPageChanged;
+
+        //...... your code
+    }
+
+    private async Task LoadDocumentAsync(StorageFile file, string password = "")
+    {
+        _pdfViewModel.OnDocumentClosed();
+        _documentManager.CloseDocument(_currentDocument);
+
+        _currentDocument = await _documentManager.OpenDocumentAsync(file, password);
+
+        if (_currentDocument != null)
         {
-            case RD_ERROR.err_open:
-                //can't open the PDF file
-                break;
-            case RD_ERROR.err_invalid_para:
-                //invalid parameter
-                break;
-            case RD_ERROR.err_encrypt:
-                //PDF file encrypted with unknown filter.
-                break;
-            case RD_ERROR.err_bad_file:
-                //bad file
-                break;
-            case RD_ERROR.err_password:
-                //password required
-                break;
-            case RD_ERROR.err_ok:
-                //success
-                _pdfViewModel.OnDocumentLoaded(_currentDocument);
-                break;
-            default:
-                //Unknown error
-                break;
+            DocumentInfo = _documentManager.GetDocumentInfo(_currentDocument);
+            _navigationService.SetTotalPages(DocumentInfo?.PageCount ?? 0);
+            _navigationService.GoToPage(0);
+            IsDocumentLoaded = true;
+
+            _pdfViewModel.OnDocumentLoaded(_currentDocument);
+
+            //...... your code
+
         }
     }
 }
