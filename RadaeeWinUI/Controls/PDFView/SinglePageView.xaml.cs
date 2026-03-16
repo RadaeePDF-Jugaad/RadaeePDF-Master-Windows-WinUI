@@ -275,7 +275,23 @@ namespace RadaeeWinUI.Controls.PDFView
                     ShowAnnotations = true
                 };
 
-                var bitmap = await _renderService.RenderPageAsync(page, renderWidth, renderHeight, options, cancellationToken);
+                // Try to get from cache first
+                string cacheKey = _renderService.GenerateCacheKey(_currentPageIndex, renderWidth, renderHeight, options);
+                var cachedBitmap = _renderService.GetCachedPage(cacheKey);
+                
+                WriteableBitmap? bitmap = cachedBitmap;
+                
+                // Cache miss - render the page
+                if (bitmap == null)
+                {
+                    bitmap = await _renderService.RenderPageAsync(page, renderWidth, renderHeight, options, cancellationToken);
+                    
+                    // Store in cache
+                    if (bitmap != null && !cancellationToken.IsCancellationRequested)
+                    {
+                        _renderService.CacheRenderedPage(cacheKey, bitmap);
+                    }
+                }
 
                 if (bitmap != null && !cancellationToken.IsCancellationRequested)
                 {

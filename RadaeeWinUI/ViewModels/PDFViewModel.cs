@@ -186,7 +186,88 @@ namespace RadaeeWinUI.ViewModels
             }
         }
 
-        private void SelectAnnotationTool(AnnotationType type)
+        private async Task RefreshPageAfterEditAsync(int pageIndex)
+        {
+            if (CurrentPDFView == null || _renderService == null || _currentDocument == null)
+                return;
+
+            try
+            {
+                var page = _currentDocument.GetPage(pageIndex);
+                if (page == null)
+                    return;
+
+                // Get render parameters based on current view type
+                int renderWidth, renderHeight;
+                RenderOptions options;
+
+                if (CurrentPDFView is SinglePageView singleView)
+                {
+                    float pageWidth = CurrentPDFView.vPageGetWidth(pageIndex);
+                    float pageHeight = CurrentPDFView.vPageGetHeight(pageIndex);
+                    double availableWidth = singleView.ActualWidth > 0 ? singleView.ActualWidth : 800;
+                    double availableHeight = singleView.ActualHeight > 0 ? singleView.ActualHeight : 600;
+                    float scale = (float)Math.Max(availableWidth / pageWidth, availableHeight / pageHeight) * CurrentPDFView.ZoomLevel;
+                    
+                    renderWidth = (int)(pageWidth * scale);
+                    renderHeight = (int)(pageHeight * scale);
+                    options = new RenderOptions
+                    {
+                        Scale = scale,
+                        RenderMode = RD_RENDER_MODE.mode_best,
+                        ShowAnnotations = true
+                    };
+                }
+                else if (CurrentPDFView is VerticalScrollView || CurrentPDFView is HorizontalScrollView)
+                {
+                    float pageWidth = CurrentPDFView.vPageGetWidth(pageIndex);
+                    float pageHeight = CurrentPDFView.vPageGetHeight(pageIndex);
+                    
+                    float scale;
+                    if (CurrentPDFView is VerticalScrollView vertView)
+                    {
+                        double viewportWidth = vertView.ActualWidth > 0 ? vertView.ActualWidth : 800;
+                        scale = (float)(viewportWidth / pageWidth);
+                    }
+                    else
+                    {
+                        double viewportHeight = ((HorizontalScrollView)CurrentPDFView).ActualHeight > 0 ? ((HorizontalScrollView)CurrentPDFView).ActualHeight : 600;
+                        scale = (float)(viewportHeight / pageHeight);
+                    }
+                    
+                    renderWidth = (int)(pageWidth * scale);
+                    renderHeight = (int)(pageHeight * scale);
+                    options = new RenderOptions
+                    {
+                        Scale = scale,
+                        RenderMode = RD_RENDER_MODE.mode_best,
+                        ShowAnnotations = true
+                    };
+                }
+                else
+                {
+                    // Fallback for other view types - use ClearCache + InvalidatePage
+                    _renderService.ClearCache(pageIndex);
+                    CurrentPDFView.InvalidatePage(pageIndex);
+                    return;
+                }
+
+                // Synchronously refresh the cache
+                await _renderService.RefreshPageCacheAsync(pageIndex, page, renderWidth, renderHeight, options);
+                
+                // Trigger view update
+                CurrentPDFView.InvalidatePage(pageIndex);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to refresh page {pageIndex} after edit: {ex.Message}");
+                // Fallback to old method
+                _renderService.ClearCache(pageIndex);
+                CurrentPDFView.InvalidatePage(pageIndex);
+            }
+        }
+
+        private async void SelectAnnotationTool(AnnotationType type)
         {
             if (type == AnnotationType.Select)
             {
@@ -223,10 +304,10 @@ namespace RadaeeWinUI.ViewModels
                     markupType = 1;
                 else if (type == AnnotationType.Strikeout)
                     markupType = 2;
+
                 page.AddAnnotMarkup(_pdfSel.Index1, _pdfSel.Index2, _strokeColor, markupType);
                 ClearAnnotationCanvas();
-                _renderService.ClearCache(_pdfSel.PageIndex);
-                CurrentPDFView.InvalidatePage(_pdfSel.PageIndex);
+                await RefreshPageAfterEditAsync(_pdfSel.PageIndex);
                 _pdfSel.Clear();
             }
         }
@@ -803,8 +884,7 @@ namespace RadaeeWinUI.ViewModels
                             }
                             if (await AddInkAsync(_annotPage, _currentInk))
                             {
-                                _renderService.ClearCache(_annotPageIndex);
-                                CurrentPDFView.InvalidatePage(_annotPageIndex);
+                                await RefreshPageAfterEditAsync(_annotPageIndex);
                             }
                             _currentInk = null;
                             _annotPageIndex = -1;
@@ -817,8 +897,7 @@ namespace RadaeeWinUI.ViewModels
             }
             if (annot != null)
             {
-                _renderService.ClearCache(_annotPageIndex);
-                CurrentPDFView.InvalidatePage(_annotPageIndex);
+                await RefreshPageAfterEditAsync(_annotPageIndex);
             }
             ClearAnnotationCanvas();
             _annotPage.Close();
@@ -927,7 +1006,7 @@ namespace RadaeeWinUI.ViewModels
             }
         }
 
-        public void HandleSingleTap(SingleTapEventArgs e)
+        public async void HandleSingleTap(SingleTapEventArgs e)
         {
             if (_currentDocument == null || !_currentDocument.IsOpened || CurrentPDFView == null)
                 return;
@@ -966,8 +1045,7 @@ namespace RadaeeWinUI.ViewModels
                                     page.ObjsStart();
                                     if (page.AddAnnotTextNote(pdfX, pdfY))
                                     {
-                                        _renderService.ClearCache(e.PageIndex);
-                                        CurrentPDFView.InvalidatePage(e.PageIndex);
+                                        await RefreshPageAfterEditAsync(e.PageIndex);
                                     }
                                     page.Close();
 
@@ -1002,8 +1080,7 @@ namespace RadaeeWinUI.ViewModels
 
                             if (CurrentPDFView != null && _currentDocument != null)
                             {
-                                _renderService.ClearCache(CurrentPDFView.CurrentPageIndex);
-                                CurrentPDFView.InvalidatePage(CurrentPDFView.CurrentPageIndex);
+                                await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                             }
                         }
                         else if (result == ContentDialogResult.Secondary)
@@ -1012,8 +1089,7 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 page.ObjsStart();
                                 annot.RemoveFromPage();
-                                _renderService.ClearCache(CurrentPDFView.CurrentPageIndex);
-                                CurrentPDFView.InvalidatePage(CurrentPDFView.CurrentPageIndex);
+                                await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
                         }
@@ -1030,8 +1106,7 @@ namespace RadaeeWinUI.ViewModels
                             annot.LineStyle = dialog.LineStyle;
                             annot.StrokeColor = (int)dialog.StrokeColor;
                             annot.StrokeWidth = dialog.StrokeWidth;
-                            _renderService.ClearCache(CurrentPDFView.CurrentPageIndex);
-                            CurrentPDFView.InvalidatePage(CurrentPDFView.CurrentPageIndex);
+                            await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                             page.Close();
                         }
                         else if (result == ContentDialogResult.Secondary)
@@ -1040,8 +1115,7 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 page.ObjsStart();
                                 annot.RemoveFromPage();
-                                _renderService.ClearCache(CurrentPDFView.CurrentPageIndex);
-                                CurrentPDFView.InvalidatePage(CurrentPDFView.CurrentPageIndex);
+                                await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
                         }
@@ -1060,8 +1134,7 @@ namespace RadaeeWinUI.ViewModels
                             annot.StrokeColor = (int)dialog.StrokeColor;
                             annot.FillColor = (int)dialog.FillColor;
                             annot.StrokeWidth = dialog.StrokeWidth;
-                            _renderService.ClearCache(CurrentPDFView.CurrentPageIndex);
-                            CurrentPDFView.InvalidatePage(CurrentPDFView.CurrentPageIndex);
+                            await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                             page.Close();
                         }
                         else if (result == ContentDialogResult.Secondary)
@@ -1070,8 +1143,7 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 page.ObjsStart();
                                 annot.RemoveFromPage();
-                                _renderService.ClearCache(CurrentPDFView.CurrentPageIndex);
-                                CurrentPDFView.InvalidatePage(CurrentPDFView.CurrentPageIndex);
+                                await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
                         }

@@ -14,9 +14,9 @@ namespace RadaeeWinUI.Services
 {
     public class PageRenderService : IPageRenderService
     {
-        private readonly ConcurrentDictionary<int, CacheEntry> _pageCache = new();
+        private readonly ConcurrentDictionary<string, CacheEntry> _pageCache = new();
         private readonly ConcurrentDictionary<int, CancellationTokenSource> _renderTasks = new();
-        private readonly LinkedList<int> _lruList = new();
+        private readonly LinkedList<string> _lruList = new();
         private readonly object _lruLock = new();
         private const int MaxCacheSize = 50;
         private int _cacheAccessCounter = 0;
@@ -25,12 +25,16 @@ namespace RadaeeWinUI.Services
         {
             public WriteableBitmap Bitmap { get; set; }
             public int LastAccessTime { get; set; }
-            public LinkedListNode<int>? LruNode { get; set; }
+            public LinkedListNode<string>? LruNode { get; set; }
+            public string CacheKey { get; set; }
+            public int PageIndex { get; set; }
 
-            public CacheEntry(WriteableBitmap bitmap, int accessTime)
+            public CacheEntry(WriteableBitmap bitmap, int accessTime, string cacheKey, int pageIndex)
             {
                 Bitmap = bitmap;
                 LastAccessTime = accessTime;
+                CacheKey = cacheKey;
+                PageIndex = pageIndex;
             }
         }
 
@@ -89,11 +93,19 @@ namespace RadaeeWinUI.Services
             }
         }
 
-        public void CacheRenderedPage(int pageIndex, WriteableBitmap bitmap)
+        public string GenerateCacheKey(int pageIndex, int width, int height, RenderOptions options)
         {
+            return $"{pageIndex}_{width}_{height}_{(int)options.RenderMode}_{options.ShowAnnotations}";
+        }
+
+        public void CacheRenderedPage(string cacheKey, WriteableBitmap bitmap)
+        {
+            // Extract page index from cache key for page-level operations
+            int pageIndex = ExtractPageIndexFromCacheKey(cacheKey);
+            
             lock (_lruLock)
             {
-                if (_pageCache.TryGetValue(pageIndex, out var existingEntry))
+                if (_pageCache.TryGetValue(cacheKey, out var existingEntry))
                 {
                     if (existingEntry.LruNode != null)
                     {
@@ -101,30 +113,30 @@ namespace RadaeeWinUI.Services
                     }
                     existingEntry.Bitmap = bitmap;
                     existingEntry.LastAccessTime = Interlocked.Increment(ref _cacheAccessCounter);
-                    existingEntry.LruNode = _lruList.AddFirst(pageIndex);
+                    existingEntry.LruNode = _lruList.AddFirst(cacheKey);
                 }
                 else
                 {
                     if (_pageCache.Count >= MaxCacheSize)
                     {
-                        var lruPageIndex = _lruList.Last?.Value;
-                        if (lruPageIndex.HasValue)
+                        var lruCacheKey = _lruList.Last?.Value;
+                        if (lruCacheKey != null)
                         {
                             _lruList.RemoveLast();
-                            _pageCache.TryRemove(lruPageIndex.Value, out _);
+                            _pageCache.TryRemove(lruCacheKey, out _);
                         }
                     }
 
-                    var entry = new CacheEntry(bitmap, Interlocked.Increment(ref _cacheAccessCounter));
-                    entry.LruNode = _lruList.AddFirst(pageIndex);
-                    _pageCache[pageIndex] = entry;
+                    var entry = new CacheEntry(bitmap, Interlocked.Increment(ref _cacheAccessCounter), cacheKey, pageIndex);
+                    entry.LruNode = _lruList.AddFirst(cacheKey);
+                    _pageCache[cacheKey] = entry;
                 }
             }
         }
 
-        public WriteableBitmap? GetCachedPage(int pageIndex)
+        public WriteableBitmap? GetCachedPage(string cacheKey)
         {
-            if (_pageCache.TryGetValue(pageIndex, out var entry))
+            if (_pageCache.TryGetValue(cacheKey, out var entry))
             {
                 lock (_lruLock)
                 {
@@ -132,7 +144,7 @@ namespace RadaeeWinUI.Services
                     if (entry.LruNode != null)
                     {
                         _lruList.Remove(entry.LruNode);
-                        entry.LruNode = _lruList.AddFirst(pageIndex);
+                        entry.LruNode = _lruList.AddFirst(cacheKey);
                     }
                 }
                 return entry.Bitmap;
@@ -158,13 +170,60 @@ namespace RadaeeWinUI.Services
         {
             lock (_lruLock)
             {
-                /*foreach (var cts in _renderTasks.Values)
+                // Remove all cache entries for this page index
+                var keysToRemove = _pageCache.Where(kvp => kvp.Value.PageIndex == pageIndex)
+                                             .Select(kvp => kvp.Key)
+                                             .ToList();
+                
+                foreach (var key in keysToRemove)
                 {
-                    cts.Cancel();
+                    if (_pageCache.TryRemove(key, out var entry))
+                    {
+                        if (entry.LruNode != null)
+                        {
+                            _lruList.Remove(entry.LruNode);
+                        }
+                    }
                 }
-                _renderTasks.Clear();*/
-                _pageCache.TryRemove(pageIndex, out _);
             }
+        }
+
+        public async Task<WriteableBitmap?> RefreshPageCacheAsync(int pageIndex, PDFPage page, int width, int height, RenderOptions options, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                string cacheKey = GenerateCacheKey(pageIndex, width, height, options);
+                
+                // 1. Remove old cache entry
+                ClearCache(pageIndex);
+                
+                // 2. Render immediately
+                var bitmap = await RenderPageAsync(page, width, height, options, cancellationToken);
+                
+                // 3. Store in cache
+                if (bitmap != null && !cancellationToken.IsCancellationRequested)
+                {
+                    CacheRenderedPage(cacheKey, bitmap);
+                }
+                
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Cache refresh failed for page {pageIndex}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private int ExtractPageIndexFromCacheKey(string cacheKey)
+        {
+            // Cache key format: {pageIndex}_{width}_{height}_{renderMode}_{showAnnotations}
+            var parts = cacheKey.Split('_');
+            if (parts.Length > 0 && int.TryParse(parts[0], out int pageIndex))
+            {
+                return pageIndex;
+            }
+            return -1;
         }
 
         public void CancelRender(int pageIndex)
