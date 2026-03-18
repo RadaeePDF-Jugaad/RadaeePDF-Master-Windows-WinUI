@@ -310,6 +310,12 @@ namespace RadaeeWinUI.Controls.PDFView
                     // Set canvas size to accommodate the page with offset
                     PageCanvas.Width = Math.Max(renderWidth, availableWidth);
                     PageCanvas.Height = Math.Max(renderHeight, availableHeight);
+
+                    // Sync AnnotationCanvas with PageCanvas
+                    AnnotationCanvas.Width = PageCanvas.Width;
+                    AnnotationCanvas.Height = PageCanvas.Height;
+                    Canvas.SetLeft(AnnotationCanvas, 0);
+                    Canvas.SetTop(AnnotationCanvas, 0);
                 }
             }
             catch (OperationCanceledException)

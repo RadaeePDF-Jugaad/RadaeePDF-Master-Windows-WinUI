@@ -31,6 +31,7 @@
             <AppBarButton Icon="ZoomOut" Label="Zoom Out" Click="ZoomOut_Click"/>
             <AppBarButton Icon="Zoom" Label="Fit Width" Click="FitWidth_Click"/>
             <AppBarButton x:Name="BtnOutline" Icon="OutlineStar" Label="Outline" Click="Outline_Click" Visibility="Collapsed"/>
+            <AppBarButton x:Name="BtnAttachment" Icon="Attach" Label="Attachment" Click="Attachment_Click" Visibility="Collapsed"/>
             <AppBarSeparator/>
             <AppBarButton Label="View Mode">
                 <AppBarButton.Flyout>

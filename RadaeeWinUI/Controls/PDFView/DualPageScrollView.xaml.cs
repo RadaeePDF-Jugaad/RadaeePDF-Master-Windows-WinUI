@@ -173,6 +173,12 @@ namespace RadaeeWinUI.Controls.PDFView
             var totalSize = _layoutManager.GetTotalSize();
             PageCanvas.Width = Math.Max(totalSize.width, containerWidth);
             PageCanvas.Height = totalSize.height;
+
+            // Sync AnnotationCanvas with PageCanvas
+            AnnotationCanvas.Width = PageCanvas.Width;
+            AnnotationCanvas.Height = PageCanvas.Height;
+            Canvas.SetLeft(AnnotationCanvas, 0);
+            Canvas.SetTop(AnnotationCanvas, 0);
         }
 
         private float GetCurrentScale()
@@ -229,15 +235,9 @@ namespace RadaeeWinUI.Controls.PDFView
 
             var pagePos = _layoutManager.GetPagePosition(pageIndex);
             float scrollY = (float)MainScrollViewer.VerticalOffset;
-            float relativeY = (float)(pagePos.y - scrollY);
             float pageHeight = vPageGetHeight(pageIndex);
             float scale = GetCurrentScale();
-            return (pageHeight - pdfY) * ZoomLevel * scale + relativeY;
-
-            /*var pagePos = _layoutManager.GetPagePosition(pageIndex);
-            float pageHeight = vPageGetHeight(pageIndex);
-            float scale = GetCurrentScale();
-            return (pageHeight - pdfY) * scale + (float)pagePos.y;*/
+            return (pageHeight - pdfY) * ZoomLevel * scale + (float)pagePos.y;
         }
 
         public override float vPageGetWidth(int pageIndex)

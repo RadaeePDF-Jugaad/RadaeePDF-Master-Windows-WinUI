@@ -173,6 +173,12 @@ namespace RadaeeWinUI.Controls.PDFView
             var totalSize = _layoutManager.GetTotalSize();
             PageCanvas.Width = Math.Max(totalSize.width, containerWidth);
             PageCanvas.Height = totalSize.height;
+
+            // Sync AnnotationCanvas with PageCanvas
+            AnnotationCanvas.Width = PageCanvas.Width;
+            AnnotationCanvas.Height = PageCanvas.Height;
+            Canvas.SetLeft(AnnotationCanvas, 0);
+            Canvas.SetTop(AnnotationCanvas, 0);
         }
 
         private float GetCurrentScale()
@@ -228,10 +234,9 @@ namespace RadaeeWinUI.Controls.PDFView
 
             var pagePos = _layoutManager.GetPagePosition(pageIndex);
             float scrollY = (float)MainScrollViewer.VerticalOffset;
-            float relativeY = (float)(pagePos.y - scrollY);
             float pageHeight = vPageGetHeight(pageIndex);
             float scale = GetCurrentScale();
-            return (pageHeight - pdfY) * ZoomLevel * scale + relativeY;
+            return (pageHeight - pdfY) * ZoomLevel * scale + (float)pagePos.y;
         }
 
         public override float vPageGetWidth(int pageIndex)
@@ -486,14 +491,14 @@ namespace RadaeeWinUI.Controls.PDFView
                 // Try to get from cache first
                 string cacheKey = _renderService.GenerateCacheKey(pageIndex, renderWidth, renderHeight, options);
                 var cachedBitmap = _renderService.GetCachedPage(cacheKey);
-                
+
                 WriteableBitmap? bitmap = cachedBitmap;
-                
+
                 // Cache miss - render the page
                 if (bitmap == null)
                 {
                     bitmap = await _renderService.RenderPageAsync(page, renderWidth, renderHeight, options, cts.Token);
-                    
+
                     // Store in cache
                     if (bitmap != null && !cts.Token.IsCancellationRequested)
                     {

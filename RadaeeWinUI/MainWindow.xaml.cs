@@ -61,6 +61,9 @@ namespace RadaeeWinUI
                     case nameof(ViewModel.TotalPages):
                         TotalPagesText.Text = ViewModel.TotalPages.ToString();
                         break;
+                    case nameof(ViewModel.HasAttachments):
+                        UpdateAttachmentButtonVisibility();
+                        break;
                 }
             });
         }
@@ -119,6 +122,8 @@ namespace RadaeeWinUI
                 {
                     BtnOutline.Visibility = Visibility.Collapsed;
                 }
+
+                UpdateAttachmentButtonVisibility();
             }
         }
 
@@ -224,6 +229,27 @@ namespace RadaeeWinUI
         private void Outline_Click(object sender, RoutedEventArgs e)
         {
             ShowPDFOutline();
+        }
+
+        private void UpdateAttachmentButtonVisibility()
+        {
+            BtnAttachment.Visibility = ViewModel.HasAttachments ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async void Attachment_Click(object sender, RoutedEventArgs e)
+        {
+            var doc = ViewModel.GetCurrentDocument();
+            if (doc != null)
+            {
+                var dialog = new AttachmentListDialog
+                {
+                    XamlRoot = this.Content.XamlRoot
+                };
+                dialog.LoadAttachments(doc);
+                await dialog.ShowAsync();
+
+                ViewModel.GetCurrentDocument();
+            }
         }
     }
 }

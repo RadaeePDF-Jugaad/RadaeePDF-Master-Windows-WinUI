@@ -165,6 +165,12 @@ namespace RadaeeWinUI.Controls.PDFView
             var totalSize = _layoutManager.GetTotalSize();
             PageCanvas.Width = Math.Max(totalSize.width, containerWidth);
             PageCanvas.Height = Math.Max(totalSize.height, containerHeight);
+
+            // Sync AnnotationCanvas with PageCanvas
+            AnnotationCanvas.Width = PageCanvas.Width;
+            AnnotationCanvas.Height = PageCanvas.Height;
+            Canvas.SetLeft(AnnotationCanvas, 0);
+            Canvas.SetTop(AnnotationCanvas, 0);
         }
 
         private float GetCurrentScale()

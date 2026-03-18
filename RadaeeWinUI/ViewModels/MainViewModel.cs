@@ -18,6 +18,7 @@ namespace RadaeeWinUI.ViewModels
         private PDFDoc? _currentDocument;
         private DocumentInfo? _documentInfo;
         private bool _isDocumentLoaded;
+        private bool _hasAttachments;
 
         public MainViewModel(
             IDocumentManager documentManager,
@@ -58,6 +59,12 @@ namespace RadaeeWinUI.ViewModels
         {
             get => _isDocumentLoaded;
             set => SetProperty(ref _isDocumentLoaded, value);
+        }
+
+        public bool HasAttachments
+        {
+            get => _hasAttachments;
+            set => SetProperty(ref _hasAttachments, value);
         }
 
         public int CurrentPageNumber => _navigationService.CurrentPageIndex + 1;
@@ -112,6 +119,7 @@ namespace RadaeeWinUI.ViewModels
                 OnPropertyChanged(nameof(CurrentPageNumber));
                 OnPropertyChanged(nameof(TotalPages));
                 UpdateNavigationCommands();
+                UpdateAttachmentStatus();
             }
         }
 
@@ -172,6 +180,19 @@ namespace RadaeeWinUI.ViewModels
         public PDFDoc? GetCurrentDocument()
         {
             return _currentDocument;
+        }
+
+        private void UpdateAttachmentStatus()
+        {
+            if (_currentDocument != null && _currentDocument.IsOpened)
+            {
+                int efCount = _currentDocument.EFCount;
+                HasAttachments = efCount > 0;
+            }
+            else
+            {
+                HasAttachments = false;
+            }
         }
     }
 }

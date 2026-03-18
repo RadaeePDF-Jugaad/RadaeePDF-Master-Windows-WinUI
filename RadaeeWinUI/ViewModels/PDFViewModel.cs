@@ -14,6 +14,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Threading.Tasks;
 using Windows.UI;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace RadaeeWinUI.ViewModels
 {
@@ -32,6 +33,7 @@ namespace RadaeeWinUI.ViewModels
         private readonly ILayoutManager _layoutManager;
         private PDFDoc? _currentDocument;
         private Canvas? _annotationCanvas;
+        private Controls.FormTextInput? _activeFormInput;
 
         private PDFPageState _currentState = PDFPageState.Normal;
         private Controls.PDFView.PDFView? _currentPDFView;
@@ -186,6 +188,52 @@ namespace RadaeeWinUI.ViewModels
             }
         }
 
+        private void HideFormInput()
+        {
+            if (_activeFormInput != null && _annotationCanvas != null)
+            {
+                _annotationCanvas.Children.Remove(_activeFormInput);
+                _activeFormInput = null;
+            }
+        }
+
+        private async void ShowFormTextInput(PDFAnnot annot, PDFPage page, int pageIndex)
+        {
+            if (CurrentPDFView == null || _annotationCanvas == null)
+                return;
+
+            HideFormInput();
+
+            int editType = annot.EditType;
+            RDRect rect = annot.EditTextRect;
+            string currentText = annot.EditText ?? string.Empty;
+
+            //float screenX = CurrentPDFView.ToScreenX(rect.left, pageIndex);
+            //float screenY = CurrentPDFView.ToScreenY(rect.bottom, pageIndex);
+            var screen = PDFToScreen(rect.left, rect.bottom, pageIndex);
+            float screenWidth = (rect.right - rect.left) * CurrentPDFView.PDFScale;
+            float screenHeight = (rect.bottom - rect.top) * CurrentPDFView.PDFScale;
+
+            _activeFormInput = new Controls.FormTextInput();
+            _activeFormInput.Initialize(annot, page, currentText, editType);
+            _activeFormInput.Width = screenWidth;
+            _activeFormInput.Height = screenHeight;
+
+            _activeFormInput.TextSubmitted += async (s, text) =>
+            {
+                await RefreshPageAfterEditAsync(pageIndex);
+            };
+
+            _activeFormInput.Dismissed += (s, e) =>
+            {
+                HideFormInput();
+            };
+
+            Canvas.SetLeft(_activeFormInput, screen.screenX);
+            Canvas.SetTop(_activeFormInput, screen.screenY);
+            _annotationCanvas.Children.Add(_activeFormInput);
+        }
+
         private async Task RefreshPageAfterEditAsync(int pageIndex)
         {
             if (CurrentPDFView == null || _renderService == null || _currentDocument == null)
@@ -208,7 +256,7 @@ namespace RadaeeWinUI.ViewModels
                     double availableWidth = singleView.ActualWidth > 0 ? singleView.ActualWidth : 800;
                     double availableHeight = singleView.ActualHeight > 0 ? singleView.ActualHeight : 600;
                     float scale = (float)Math.Max(availableWidth / pageWidth, availableHeight / pageHeight) * CurrentPDFView.ZoomLevel;
-                    
+
                     renderWidth = (int)(pageWidth * scale);
                     renderHeight = (int)(pageHeight * scale);
                     options = new RenderOptions
@@ -222,7 +270,7 @@ namespace RadaeeWinUI.ViewModels
                 {
                     float pageWidth = CurrentPDFView.vPageGetWidth(pageIndex);
                     float pageHeight = CurrentPDFView.vPageGetHeight(pageIndex);
-                    
+
                     float scale;
                     if (CurrentPDFView is VerticalScrollView vertView)
                     {
@@ -234,7 +282,7 @@ namespace RadaeeWinUI.ViewModels
                         double viewportHeight = ((HorizontalScrollView)CurrentPDFView).ActualHeight > 0 ? ((HorizontalScrollView)CurrentPDFView).ActualHeight : 600;
                         scale = (float)(viewportHeight / pageHeight);
                     }
-                    
+
                     renderWidth = (int)(pageWidth * scale);
                     renderHeight = (int)(pageHeight * scale);
                     options = new RenderOptions
@@ -254,7 +302,7 @@ namespace RadaeeWinUI.ViewModels
 
                 // Synchronously refresh the cache
                 await _renderService.RefreshPageCacheAsync(pageIndex, page, renderWidth, renderHeight, options);
-                
+
                 // Trigger view update
                 CurrentPDFView.InvalidatePage(pageIndex);
             }
@@ -429,6 +477,7 @@ namespace RadaeeWinUI.ViewModels
 
         public void ClearSelection()
         {
+            HideFormInput();
             SelectedAnnotation = null;
             SelectedAnnotationType = AnnotationType.None;
         }
@@ -547,6 +596,7 @@ namespace RadaeeWinUI.ViewModels
         private void OnCurrentPageChanged(object? sender, PageChangedEventArgs e)
         {
             Debug.WriteLine($"on page changed, old page index:  {e.OldPageIndex}; new page index: {e.NewPageIndex}");
+            HideFormInput();
             CurrentPageChanged.Invoke(this, e);
 
 
@@ -555,7 +605,6 @@ namespace RadaeeWinUI.ViewModels
         public void OnDocumentLoaded(PDFDoc doc)
         {
             _currentDocument = doc;
-
             if (CurrentPDFView != null && doc != null && doc.IsOpened)
             {
                 CurrentPDFView.PDFVOpen(doc);
@@ -564,6 +613,7 @@ namespace RadaeeWinUI.ViewModels
 
         public void OnDocumentClosed()
         {
+            HideFormInput();
             ClearAnnotationCanvas();
             if (CurrentPDFView != null)
             {
@@ -1028,6 +1078,12 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 processAnnotationTap(annot, page);
                             }
+                            else
+                            {
+                                // Clicked outside any annotation, hide form input if active
+                                HideFormInput();
+                            }
+
                         }
                     }
                     break;
@@ -1095,6 +1151,44 @@ namespace RadaeeWinUI.ViewModels
                         }
                         break;
                     }
+                case 2:
+                    {
+                        //Link
+                        if (annot.IsURI)
+                        {
+                            String uri = annot.URI;
+                            if (uri != null && uri.Length > 0)
+                            {
+                                var confirmDialog = new ContentDialog
+                                {
+                                    Title = "Open Link",
+                                    Content = $"Do you want to open the following link?\n{uri}",
+                                    PrimaryButtonText = "OK",
+                                    CloseButtonText = "Cancel",
+                                    XamlRoot = CurrentPDFView?.XamlRoot
+                                };
+                                var dialogResult = await confirmDialog.ShowAsync();
+                                if (dialogResult == ContentDialogResult.Primary)
+                                {
+                                    await Windows.System.Launcher.LaunchUriAsync(new Uri(uri));
+                                }
+                            }
+                        }
+                        else if (annot.IsFileLink)
+                        {
+                            String filePath = annot.FileLink;
+                        }
+                        else if (annot.IsRemoteDest)
+                        {
+                            String remoteDest = annot.RemoteDest;
+                        }
+                        else if (annot.IsAttachment)
+                        {
+                            //Attachment
+                            String attachmentName = annot.GetAttachmentName();
+                        }
+                            break;
+                    }
                 case 4: // Line
                 case 15: // Ink
                     {
@@ -1146,6 +1240,70 @@ namespace RadaeeWinUI.ViewModels
                                 await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
+                        }
+                        break;
+                    }
+                case 20:
+                    {
+                        //Form
+                        /*0: unknown
+                         *1: button field
+                         *2: text field
+                         *3: choice field
+                         *4: signature field
+                         */
+                        int fieldType = annot.FieldType;
+                        switch (fieldType)
+                        {
+                            case 1:
+                                {
+                                    //Button field
+                                    int editType = annot.EditType;
+                                    String fieldName = annot.FieldName;
+                                    String FieldFullName = annot.FieldFullName;
+                                    String FieldFullName2 = annot.FieldFullName2;
+                                    String FieldNameWithNO = annot.FieldNameWithNO;
+
+                                    //-1 if annotation is not valid control.
+                                    //0 if check-box is not checked.
+                                    //1 if check-box checked.
+                                    //2 if radio-box is not checked.
+                                    //3 if radio-box checked
+                                    int status = annot.GetCheckStatus();
+                                    if (status == 0 || status == 1)
+                                    {
+                                        //Check box
+                                        annot.SetCheckValue(status == 0);
+                                    }
+                                    else if (status == 2 || status == 3)
+                                    {
+                                        //Radio box 
+                                        annot.SetRadio();
+                                    }
+                                    RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
+                                    break;
+                                }
+                            case 2:
+                                {
+                                    //Text field
+                                    String fieldName = annot.FieldName;
+                                    String FieldFullName = annot.FieldFullName;
+                                    String FieldFullName2 = annot.FieldFullName2;
+                                    String FieldNameWithNO = annot.FieldNameWithNO;
+
+                                    // -1: this annotation is not text - box.
+                                    // 1: normal single line.
+                                    // 2: password.
+                                    // 3: MultiLine edit area.
+                                    int editType = annot.EditType;
+                                    RDRect rect = annot.EditTextRect;
+
+                                    if (CurrentPDFView != null)
+                                    {
+                                        ShowFormTextInput(annot, page, CurrentPDFView.CurrentPageIndex);
+                                    }
+                                    break;
+                                }
                         }
                         break;
                     }
