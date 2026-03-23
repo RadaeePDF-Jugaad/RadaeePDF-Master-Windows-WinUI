@@ -18,7 +18,7 @@ namespace RadaeeWinUI.Controls.PDFView
     {
         private IPageRenderService? _renderService;
         private ILayoutManager? _layoutManager;
-        private Dictionary<int, Image> _pageImages = new();
+        private Dictionary<int, PageContainer> _pageContainers = new();
         private Dictionary<int, CancellationTokenSource> _renderCancellationTokens = new();
         private List<PageLayoutInfo> _visiblePages = new();
         private DispatcherTimer? _scrollDebounceTimer;
@@ -83,24 +83,18 @@ namespace RadaeeWinUI.Controls.PDFView
         private void OnGestureSingleTap(object? sender, SingleTapEventArgs e)
         {
             e.PageIndex = GetPageAtPoint(e.X, e.Y);
-            /*e.X = (float)(e.X - MainScrollViewer.HorizontalOffset);
-            e.Y = (float)(e.Y - MainScrollViewer.VerticalOffset);*/
             RaiseSingleTap(e);
         }
 
         private void OnGestureDoubleTap(object? sender, DoubleTapEventArgs e)
         {
             e.PageIndex = GetPageAtPoint(e.X, e.Y);
-            /*e.X = (float)(e.X - MainScrollViewer.HorizontalOffset);
-            e.Y = (float)(e.Y - MainScrollViewer.VerticalOffset);*/
             RaiseDoubleTap(e);
         }
 
         private void OnGestureLongPress(object? sender, LongPressEventArgs e)
         {
             e.PageIndex = GetPageAtPoint(e.X, e.Y);
-            /*e.X = (float)(e.X - MainScrollViewer.HorizontalOffset);
-            e.Y = (float)(e.Y - MainScrollViewer.VerticalOffset);*/
             RaiseLongPress(e);
         }
 
@@ -133,9 +127,18 @@ namespace RadaeeWinUI.Controls.PDFView
             }
         }
 
-        public override Canvas GetAnnotationCanvas()
+        public override Canvas? GetPageAnnotationCanvas(int pageIndex)
         {
-            return AnnotationCanvas;
+            if (_pageContainers.TryGetValue(pageIndex, out var container))
+            {
+                return container.AnnotationCanvasControl;
+            }
+            return null;
+        }
+
+        public override List<int> GetVisiblePageIndices()
+        {
+            return new List<int>(_pageContainers.Keys);
         }
 
         public override void PDFVClose()
@@ -173,12 +176,6 @@ namespace RadaeeWinUI.Controls.PDFView
             var totalSize = _layoutManager.GetTotalSize();
             PageCanvas.Width = totalSize.width;
             PageCanvas.Height = Math.Max(totalSize.height, containerHeight);
-
-            // Sync AnnotationCanvas with PageCanvas
-            AnnotationCanvas.Width = PageCanvas.Width;
-            AnnotationCanvas.Height = PageCanvas.Height;
-            Canvas.SetLeft(AnnotationCanvas, 0);
-            Canvas.SetTop(AnnotationCanvas, 0);
         }
 
         private float GetCurrentScale()
@@ -187,8 +184,19 @@ namespace RadaeeWinUI.Controls.PDFView
                 return 1.0f;
 
             double viewportHeight = MainScrollViewer.ViewportHeight > 0 ? MainScrollViewer.ViewportHeight : (ActualHeight > 0 ? ActualHeight : 600);
-            float pageHeight = vPageGetHeight(0);
-            
+            float pageHeight = vPageGetHeight(CurrentPageIndex);
+
+            return (float)(viewportHeight / pageHeight) * ZoomLevel;
+        }
+
+        private float GetPageScale(int pageIndex)
+        {
+            if (mPDFDoc == null || !mPDFDoc.IsOpened)
+                return 1.0f;
+
+            double viewportHeight = MainScrollViewer.ViewportHeight > 0 ? MainScrollViewer.ViewportHeight : (ActualHeight > 0 ? ActualHeight : 600);
+            float pageHeight = vPageGetHeight(pageIndex);
+
             return (float)(viewportHeight / pageHeight) * ZoomLevel;
         }
 
@@ -198,9 +206,8 @@ namespace RadaeeWinUI.Controls.PDFView
                 return 0;
 
             var pagePos = _layoutManager.GetPagePosition(pageIndex);
-            //float scrollX = (float)MainScrollViewer.HorizontalOffset;
-            float relativeX = /*scrollX +*/ screenX - (float)pagePos.x;
-            float scale = GetCurrentScale();
+            float relativeX = screenX - (float)pagePos.x;
+            float scale = GetPageScale(pageIndex);
             return relativeX / scale;
         }
 
@@ -212,7 +219,7 @@ namespace RadaeeWinUI.Controls.PDFView
             var pagePos = _layoutManager.GetPagePosition(pageIndex);
             float pageHeight = vPageGetHeight(pageIndex);
             float relativeY = screenY - (float)pagePos.y;
-            float scale = GetCurrentScale();
+            float scale = GetPageScale(pageIndex);
             
             return pageHeight - (relativeY / scale);
         }
@@ -223,9 +230,8 @@ namespace RadaeeWinUI.Controls.PDFView
                 return 0;
 
             var pagePos = _layoutManager.GetPagePosition(pageIndex);
-            float scrollX = (float)MainScrollViewer.HorizontalOffset;
             float scale = GetCurrentScale();
-            return pdfX * scale + ((float)pagePos.x - scrollX);
+            return pdfX * scale + (float)pagePos.x;
         }
 
         public override float ToScreenY(float pdfY, int pageIndex)
@@ -296,8 +302,22 @@ namespace RadaeeWinUI.Controls.PDFView
             _currentPageIndex = pageIndex;
 
             var pagePos = _layoutManager.GetPagePosition(pageIndex);
-            MainScrollViewer.ChangeView(pagePos.x, null, null, false);
 
+            double containerHeight = MainScrollViewer.ViewportHeight > 0 ? MainScrollViewer.ViewportHeight : (ActualHeight > 0 ? ActualHeight : 600);
+            float pageWidth = vPageGetWidth(pageIndex);
+            float pageHeight = vPageGetHeight(pageIndex);
+            float scale = (float)(containerHeight / pageHeight);
+            double scaledPageWidth = pageWidth * ZoomLevel * scale;
+
+            double targetScrollX = pagePos.x + (scaledPageWidth / 2) - (MainScrollViewer.ViewportWidth / 2);
+            targetScrollX = Math.Max(0, targetScrollX);
+
+            MainScrollViewer.ChangeView(targetScrollX, null, null, false);
+
+            // Force immediate update of visible pages to ensure target page container is created
+            UpdateVisiblePages();
+
+            // Now raise the event after page containers are ready
             RaiseCurrentPageChanged(oldIndex, _currentPageIndex);
         }
 
@@ -316,11 +336,14 @@ namespace RadaeeWinUI.Controls.PDFView
             UpdateVisiblePages();
             _renderService?.ClearCache();
             InvalidatePage(CurrentPageIndex);
+
+            // Trigger page changed event to refresh highlights with new zoom level
+            RaiseCurrentPageChanged(_currentPageIndex, _currentPageIndex);
         }
 
         public override void InvalidatePage(int pageIndex)
         {
-            if (_pageImages.ContainsKey(pageIndex))
+            if (_pageContainers.ContainsKey(pageIndex))
             {
                 _ = RenderPageAsync(pageIndex);
             }
@@ -343,7 +366,7 @@ namespace RadaeeWinUI.Controls.PDFView
             var newVisiblePages = _layoutManager.CalculateLayout(scrollOffsetX, 0, viewportWidth, viewportHeight);
 
             var pagesToRemove = new List<int>();
-            foreach (var pageIndex in _pageImages.Keys)
+            foreach (var pageIndex in _pageContainers.Keys)
             {
                 bool isStillVisible = false;
                 foreach (var pageInfo in newVisiblePages)
@@ -370,54 +393,54 @@ namespace RadaeeWinUI.Controls.PDFView
 
             foreach (var pageInfo in _visiblePages)
             {
-                if (!_pageImages.ContainsKey(pageInfo.PageIndex))
+                if (!_pageContainers.ContainsKey(pageInfo.PageIndex))
                 {
-                    CreatePageImage(pageInfo);
+                    CreatePageContainer(pageInfo);
                 }
                 else
                 {
-                    UpdatePageImagePosition(pageInfo);
+                    UpdatePageContainerPosition(pageInfo);
                 }
             }
 
             UpdateCurrentPage(scrollOffsetX);
         }
 
-        private void CreatePageImage(PageLayoutInfo pageInfo)
+        private void CreatePageContainer(PageLayoutInfo pageInfo)
         {
-            var image = new Image
+            var container = new PageContainer
             {
-                Stretch = Microsoft.UI.Xaml.Media.Stretch.Fill
+                PageIndex = pageInfo.PageIndex
             };
 
-            Canvas.SetLeft(image, pageInfo.X);
-            Canvas.SetTop(image, pageInfo.Y);
-            image.Width = pageInfo.Width;
-            image.Height = pageInfo.Height;
+            Canvas.SetLeft(container, pageInfo.X);
+            Canvas.SetTop(container, pageInfo.Y);
+            container.Width = pageInfo.Width;
+            container.Height = pageInfo.Height;
 
-            PageCanvas.Children.Add(image);
-            _pageImages[pageInfo.PageIndex] = image;
+            PageCanvas.Children.Add(container);
+            _pageContainers[pageInfo.PageIndex] = container;
 
             _ = RenderPageAsync(pageInfo.PageIndex);
         }
 
-        private void UpdatePageImagePosition(PageLayoutInfo pageInfo)
+        private void UpdatePageContainerPosition(PageLayoutInfo pageInfo)
         {
-            if (_pageImages.TryGetValue(pageInfo.PageIndex, out var image))
+            if (_pageContainers.TryGetValue(pageInfo.PageIndex, out var container))
             {
-                Canvas.SetLeft(image, pageInfo.X);
-                Canvas.SetTop(image, pageInfo.Y);
-                image.Width = pageInfo.Width;
-                image.Height = pageInfo.Height;
+                Canvas.SetLeft(container, pageInfo.X);
+                Canvas.SetTop(container, pageInfo.Y);
+                container.Width = pageInfo.Width;
+                container.Height = pageInfo.Height;
             }
         }
 
         private void RemovePage(int pageIndex)
         {
-            if (_pageImages.TryGetValue(pageIndex, out var image))
+            if (_pageContainers.TryGetValue(pageIndex, out var container))
             {
-                PageCanvas.Children.Remove(image);
-                _pageImages.Remove(pageIndex);
+                PageCanvas.Children.Remove(container);
+                _pageContainers.Remove(pageIndex);
             }
 
             if (_renderCancellationTokens.TryGetValue(pageIndex, out var cts))
@@ -430,11 +453,11 @@ namespace RadaeeWinUI.Controls.PDFView
 
         private void ClearAllPages()
         {
-            foreach (var image in _pageImages.Values)
+            foreach (var container in _pageContainers.Values)
             {
-                PageCanvas.Children.Remove(image);
+                PageCanvas.Children.Remove(container);
             }
-            _pageImages.Clear();
+            _pageContainers.Clear();
             _visiblePages.Clear();
         }
 
@@ -453,7 +476,7 @@ namespace RadaeeWinUI.Controls.PDFView
             if (mPDFDoc == null || !mPDFDoc.IsOpened || _renderService == null)
                 return;
 
-            if (!_pageImages.ContainsKey(pageIndex))
+            if (!_pageContainers.ContainsKey(pageIndex))
                 return;
 
             if (_renderCancellationTokens.TryGetValue(pageIndex, out var existingCts))
@@ -506,9 +529,9 @@ namespace RadaeeWinUI.Controls.PDFView
                     }
                 }
                 
-                if (bitmap != null && !cts.Token.IsCancellationRequested && _pageImages.TryGetValue(pageIndex, out var image))
+                if (bitmap != null && !cts.Token.IsCancellationRequested && _pageContainers.TryGetValue(pageIndex, out var container))
                 {
-                    image.Source = bitmap;
+                    container.PageImageControl.Source = bitmap;
                 }
             }
             catch (OperationCanceledException)

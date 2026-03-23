@@ -126,28 +126,40 @@ namespace RadaeeWinUI.ViewModels
 
         private async Task GoToNextPageAsync()
         {
-            if (_navigationService.GoToNextPage())
+            int step = (_pdfViewModel.ViewMode == ViewMode.DualPage || _pdfViewModel.ViewMode == ViewMode.DualPageContinuous) ? 2 : 1;
+
+            int targetPage = _navigationService.CurrentPageIndex + step;
+            if (targetPage < _navigationService.TotalPages)
             {
-                if (_pdfViewModel.CurrentPDFView != null)
+                if (_navigationService.GoToPage(targetPage))
                 {
-                    _pdfViewModel.CurrentPDFView.vPageGoto(_navigationService.CurrentPageIndex);
+                    if (_pdfViewModel.CurrentPDFView != null)
+                    {
+                        _pdfViewModel.CurrentPDFView.vPageGoto(_navigationService.CurrentPageIndex);
+                    }
+                    OnPropertyChanged(nameof(CurrentPageNumber));
+                    UpdateNavigationCommands();
                 }
-                OnPropertyChanged(nameof(CurrentPageNumber));
-                UpdateNavigationCommands();
             }
             await Task.CompletedTask;
         }
 
         private async Task GoToPreviousPageAsync()
         {
-            if (_navigationService.GoToPreviousPage())
+            int step = (_pdfViewModel.ViewMode == ViewMode.DualPage || _pdfViewModel.ViewMode == ViewMode.DualPageContinuous) ? 2 : 1;
+
+            int targetPage = _navigationService.CurrentPageIndex - step;
+            if (targetPage >= 0)
             {
-                if (_pdfViewModel.CurrentPDFView != null)
+                if (_navigationService.GoToPage(targetPage))
                 {
-                    _pdfViewModel.CurrentPDFView.vPageGoto(_navigationService.CurrentPageIndex);
+                    if (_pdfViewModel.CurrentPDFView != null)
+                    {
+                        _pdfViewModel.CurrentPDFView.vPageGoto(_navigationService.CurrentPageIndex);
+                    }
+                    OnPropertyChanged(nameof(CurrentPageNumber));
+                    UpdateNavigationCommands();
                 }
-                OnPropertyChanged(nameof(CurrentPageNumber));
-                UpdateNavigationCommands();
             }
             await Task.CompletedTask;
         }

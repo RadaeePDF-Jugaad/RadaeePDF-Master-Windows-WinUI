@@ -38,7 +38,7 @@ namespace RadaeeWinUI.RadaeeUtil
             _swiped = false;
         }
 
-        public int[] GetRect1(float scale, float page_height, int orgx, int orgy)
+        public int[] GetRect1(float scale, float page_height)
         {
             if (_index1 < 0 || _index2 < 0 || !_selStart)
                 return null;
@@ -49,14 +49,15 @@ namespace RadaeeWinUI.RadaeeUtil
             else
                 rect = _page.ObjsGetCharRect(_index1);
             int[] rect_draw = new int[4];
-            rect_draw[0] = (int)(rect.left * scale) + orgx;
-            rect_draw[1] = (int)((page_height - rect.bottom) * scale) + orgy;
-            rect_draw[2] = (int)(rect.right * scale) + orgx;
-            rect_draw[3] = (int)((page_height - rect.top) * scale) + orgy;
+            // Use page-local coordinates (no origin offset needed)
+            rect_draw[0] = (int)(rect.left * scale);
+            rect_draw[1] = (int)((page_height - rect.bottom) * scale);
+            rect_draw[2] = (int)(rect.right * scale);
+            rect_draw[3] = (int)((page_height - rect.top) * scale);
             return rect_draw;
         }
 
-        public int[] GetRect2(float scale, float page_height, int orgx, int orgy)
+        public int[] GetRect2(float scale, float page_height)
         {
             if (_index1 < 0 || _index2 < 0 || !_selStart)
                 return null;
@@ -67,10 +68,11 @@ namespace RadaeeWinUI.RadaeeUtil
             else
                 rect = _page.ObjsGetCharRect(_index2);
             int[] rect_draw = new int[4];
-            rect_draw[0] = (int)(rect.left * scale) + orgx;
-            rect_draw[1] = (int)((page_height - rect.bottom) * scale) + orgy;
-            rect_draw[2] = (int)(rect.right * scale) + orgx;
-            rect_draw[3] = (int)((page_height - rect.top) * scale) + orgy;
+            // Use page-local coordinates (no origin offset needed)
+            rect_draw[0] = (int)(rect.left * scale);
+            rect_draw[1] = (int)((page_height - rect.bottom) * scale);
+            rect_draw[2] = (int)(rect.right * scale);
+            rect_draw[3] = (int)((page_height - rect.top) * scale);
             return rect_draw;
         }
 
@@ -151,7 +153,7 @@ namespace RadaeeWinUI.RadaeeUtil
             return _page.ObjsGetString(_index1, _index2 + 1);
         }
 
-        public void DrawSel(Canvas canvas, float scale, float pageHeight, float origX, float origY)
+        public void DrawSel(Canvas canvas, float scale, float pageHeight)
         {
             if (_index1 < 0 || _index2 < 0 || !_selStart) return;
 
@@ -161,8 +163,9 @@ namespace RadaeeWinUI.RadaeeUtil
             {
                 RDRect rect = _page.ObjsGetCharRect(i);
 
-                double left = rect.left * scale + origX;
-                double top = (pageHeight - rect.bottom) * scale + origY;
+                // Use page-local coordinates (no origin offset needed)
+                double left = rect.left * scale;
+                double top = (pageHeight - rect.bottom) * scale;
                 double width = (rect.right - rect.left) * scale;
                 double height = (rect.bottom - rect.top) * scale;
 

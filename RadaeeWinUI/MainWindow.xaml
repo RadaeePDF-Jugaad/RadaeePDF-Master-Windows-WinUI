@@ -12,6 +12,8 @@
     mc:Ignorable="d"
     Title="Radaee PDF Viewer">
 
+
+
     <Window.SystemBackdrop>
         <MicaBackdrop />
     </Window.SystemBackdrop>
@@ -33,6 +35,7 @@
             <AppBarButton x:Name="BtnOutline" Icon="OutlineStar" Label="Outline" Click="Outline_Click" Visibility="Collapsed"/>
             <AppBarButton x:Name="BtnAttachment" Icon="Attach" Label="Attachment" Click="Attachment_Click" Visibility="Collapsed"/>
             <AppBarSeparator/>
+            <AppBarButton Icon="Find" Label="Search" Click="Search_Click"/>
             <AppBarButton Label="View Mode">
                 <AppBarButton.Flyout>
                     <MenuFlyout>
@@ -46,6 +49,7 @@
         </CommandBar>
 
         <controls:AnnotationToolbar x:Name="AnnotationToolbar" Grid.Row="1" Visibility="Collapsed"/>
+        <controls:SearchToolbar x:Name="SearchToolbar" Grid.Row="1" Visibility="Collapsed"/>
 
         <Grid Grid.Row="2">
             <TextBlock x:Name="EmptyMessage"
@@ -54,7 +58,9 @@
                        VerticalAlignment="Center"
                        FontSize="20"
                        Foreground="Gray"/>
-            
+
+
+
             <ContentControl x:Name="PDFViewContainer"
                             HorizontalContentAlignment="Stretch"
                             VerticalContentAlignment="Stretch"
@@ -105,3 +111,4 @@
         </Grid>
     </Grid>
 </Window>
+

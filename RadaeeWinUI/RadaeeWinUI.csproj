@@ -96,6 +96,11 @@
 
     <CsWinRTInputs Include="..\$(Platform)\$(Configuration)\RDUICom\RDUILib.winmd" />
 
+    <Reference Include="RDUILib">
+      <HintPath>..\..\RadaeeWinUI\RDUICom\x64\Debug\Merged\RDUILib.winmd</HintPath>
+      <IsWinMDFile>true</IsWinMDFile>
+    </Reference>
+
     <ReferenceCopyLocalPaths Include="..\$(Platform)\$(Configuration)\RDUICom\RDUICom.dll" />
 
   </ItemGroup>

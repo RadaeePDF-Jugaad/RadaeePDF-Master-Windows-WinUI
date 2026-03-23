@@ -13,17 +13,11 @@
                   VerticalScrollBarVisibility="Auto"
                   ZoomMode="Disabled"
                   ViewChanged="MainScrollViewer_ViewChanged">
-        <Grid>
-            <Canvas x:Name="PageCanvas" 
-                    Background="Transparent"
-                    PointerPressed="PageCanvas_PointerPressed"
-                    PointerMoved="PageCanvas_PointerMoved"
-                    PointerReleased="PageCanvas_PointerReleased">
-            </Canvas>
-            <Canvas x:Name="AnnotationCanvas"
-                    Background="Transparent"
-                    IsHitTestVisible="False">
-            </Canvas>
-        </Grid>
+        <Canvas x:Name="PageCanvas" 
+                Background="Transparent"
+                PointerPressed="PageCanvas_PointerPressed"
+                PointerMoved="PageCanvas_PointerMoved"
+                PointerReleased="PageCanvas_PointerReleased">
+        </Canvas>
     </ScrollViewer>
 </local:PDFView>

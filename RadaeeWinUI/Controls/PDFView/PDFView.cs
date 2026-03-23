@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using RadaeeWinUI.Models;
 using RDUILib;
 using System;
+using System.Collections.Generic;
 
 namespace RadaeeWinUI.Controls.PDFView
 {
@@ -18,7 +19,8 @@ namespace RadaeeWinUI.Controls.PDFView
 
         public int CurrentPageIndex => _currentPageIndex;
 
-        public abstract Canvas GetAnnotationCanvas();
+        public abstract Canvas? GetPageAnnotationCanvas(int pageIndex);
+        public abstract List<int> GetVisiblePageIndices();
 
         public abstract void PDFVOpen(PDFDoc doc);
         public abstract void PDFVClose();

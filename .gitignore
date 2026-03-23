@@ -1,2 +1,18 @@
 # cache / database di Visual Studio
+.vs/
+
+doc/
+
+x64/
+x86/
+ARM64/
+
+RDUICom/Generated Files/
+RDUICom/x64/
+RDUICom/x86/
+RDUICom/ARM64/
 RDUICom/.vs/
+
+RadaeeWinUI/bin/
+RadaeeWinUI/obj/
+RadaeeWinUI/.vs/

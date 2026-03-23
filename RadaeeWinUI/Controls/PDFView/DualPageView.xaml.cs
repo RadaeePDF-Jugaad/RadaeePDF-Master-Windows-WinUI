@@ -18,7 +18,7 @@ namespace RadaeeWinUI.Controls.PDFView
     {
         private IPageRenderService? _renderService;
         private ILayoutManager? _layoutManager;
-        private Dictionary<int, Image> _pageImages = new();
+        private Dictionary<int, PageContainer> _pageContainers = new();
         private Dictionary<int, CancellationTokenSource> _renderCancellationTokens = new();
         private bool _isLoaded = false;
         private bool _needsInitialization = false;
@@ -115,9 +115,18 @@ namespace RadaeeWinUI.Controls.PDFView
             }
         }
 
-        public override Canvas GetAnnotationCanvas()
+        public override Canvas? GetPageAnnotationCanvas(int pageIndex)
         {
-            return AnnotationCanvas;
+            if (_pageContainers.TryGetValue(pageIndex, out var container))
+            {
+                return container.AnnotationCanvasControl;
+            }
+            return null;
+        }
+
+        public override List<int> GetVisiblePageIndices()
+        {
+            return new List<int>(_pageContainers.Keys);
         }
 
         public override void PDFVClose()
@@ -165,12 +174,6 @@ namespace RadaeeWinUI.Controls.PDFView
             var totalSize = _layoutManager.GetTotalSize();
             PageCanvas.Width = Math.Max(totalSize.width, containerWidth);
             PageCanvas.Height = Math.Max(totalSize.height, containerHeight);
-
-            // Sync AnnotationCanvas with PageCanvas
-            AnnotationCanvas.Width = PageCanvas.Width;
-            AnnotationCanvas.Height = PageCanvas.Height;
-            Canvas.SetLeft(AnnotationCanvas, 0);
-            Canvas.SetTop(AnnotationCanvas, 0);
         }
 
         private float GetCurrentScale()
@@ -335,7 +338,7 @@ namespace RadaeeWinUI.Controls.PDFView
 
         public override void InvalidatePage(int pageIndex)
         {
-            if (_pageImages.ContainsKey(pageIndex))
+            if (_pageContainers.ContainsKey(pageIndex))
             {
                 _ = RenderPageAsync(pageIndex);
             }
@@ -358,16 +361,16 @@ namespace RadaeeWinUI.Controls.PDFView
 
             if (leftPage < mPDFDoc.PageCount)
             {
-                CreatePageImage(leftPage);
+                CreatePageContainer(leftPage);
             }
 
             if (rightPage < mPDFDoc.PageCount)
             {
-                CreatePageImage(rightPage);
+                CreatePageContainer(rightPage);
             }
         }
 
-        private void CreatePageImage(int pageIndex)
+        private void CreatePageContainer(int pageIndex)
         {
             if (_layoutManager == null)
                 return;
@@ -377,29 +380,29 @@ namespace RadaeeWinUI.Controls.PDFView
             float pageWidth = vPageGetWidth(pageIndex) * scale;
             float pageHeight = vPageGetHeight(pageIndex) * scale;
 
-            var image = new Image
+            var container = new PageContainer
             {
-                Stretch = Microsoft.UI.Xaml.Media.Stretch.Fill
+                PageIndex = pageIndex
             };
 
-            Canvas.SetLeft(image, pagePos.x);
-            Canvas.SetTop(image, pagePos.y);
-            image.Width = pageWidth;
-            image.Height = pageHeight;
+            Canvas.SetLeft(container, pagePos.x);
+            Canvas.SetTop(container, pagePos.y);
+            container.Width = pageWidth;
+            container.Height = pageHeight;
 
-            PageCanvas.Children.Add(image);
-            _pageImages[pageIndex] = image;
+            PageCanvas.Children.Add(container);
+            _pageContainers[pageIndex] = container;
 
             _ = RenderPageAsync(pageIndex);
         }
 
         private void ClearAllPages()
         {
-            foreach (var image in _pageImages.Values)
+            foreach (var container in _pageContainers.Values)
             {
-                PageCanvas.Children.Remove(image);
+                PageCanvas.Children.Remove(container);
             }
-            _pageImages.Clear();
+            _pageContainers.Clear();
         }
 
         private void CancelAllRenders()
@@ -417,7 +420,7 @@ namespace RadaeeWinUI.Controls.PDFView
             if (mPDFDoc == null || !mPDFDoc.IsOpened || _renderService == null)
                 return;
 
-            if (!_pageImages.ContainsKey(pageIndex))
+            if (!_pageContainers.ContainsKey(pageIndex))
                 return;
 
             if (_renderCancellationTokens.TryGetValue(pageIndex, out var existingCts))
@@ -451,9 +454,9 @@ namespace RadaeeWinUI.Controls.PDFView
 
                 var bitmap = await _renderService.RenderPageAsync(page, renderWidth, renderHeight, options, cts.Token);
                 
-                if (bitmap != null && !cts.Token.IsCancellationRequested && _pageImages.TryGetValue(pageIndex, out var image))
+                if (bitmap != null && !cts.Token.IsCancellationRequested && _pageContainers.TryGetValue(pageIndex, out var container))
                 {
-                    image.Source = bitmap;
+                    container.PageImageControl.Source = bitmap;
                 }
             }
             catch (OperationCanceledException)

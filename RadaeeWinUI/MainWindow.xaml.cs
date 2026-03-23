@@ -14,11 +14,15 @@ using System.Threading.Tasks;
 using RadaeeWinUI.Controls.PDFView;
 using RadaeeWinUI.Controls;
 
+
+
 namespace RadaeeWinUI
 {
     public sealed partial class MainWindow : Window
     {
         public MainViewModel ViewModel { get; }
+
+
 
         public MainWindow()
         {
@@ -31,6 +35,15 @@ namespace RadaeeWinUI
 
             ViewModel = App.GetService<MainViewModel>();
             AnnotationToolbar.ViewModel = ViewModel.PDFViewModel;
+            SearchToolbar.ViewModel = ViewModel.PDFViewModel;
+            SearchToolbar.CloseRequested += (s, e) =>
+            {
+                SearchToolbar.Visibility = Visibility.Collapsed;
+                if (ViewModel.IsDocumentLoaded)
+                {
+                    AnnotationToolbar.Visibility = Visibility.Visible;
+                }
+            };
 
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
             ViewModel.PDFViewModel.PropertyChanged += PDFViewModel_PropertyChanged;
@@ -248,9 +261,26 @@ namespace RadaeeWinUI
                 dialog.LoadAttachments(doc);
                 await dialog.ShowAsync();
 
+
+
                 ViewModel.GetCurrentDocument();
+            }
+        }
+
+        private void Search_Click(object sender, RoutedEventArgs e)
+        {
+            if (SearchToolbar.Visibility == Visibility.Visible)
+            {
+                SearchToolbar.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                AnnotationToolbar.Visibility = Visibility.Collapsed;
+                SearchToolbar.Visibility = Visibility.Visible;
             }
         }
     }
 }
+
+
 
