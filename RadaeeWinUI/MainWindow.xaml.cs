@@ -1,17 +1,10 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Media.Imaging;
 using RadaeeWinUI.Models;
 using RadaeeWinUI.RadaeeUtil;
-using RadaeeWinUI.Services;
 using RadaeeWinUI.ViewModels;
-using RDUILib;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
-using RadaeeWinUI.Controls.PDFView;
 using RadaeeWinUI.Controls;
 
 
@@ -52,7 +45,7 @@ namespace RadaeeWinUI
 
         private bool initLib()
         {
-            return RadaeeUtil.RDGlobal.init();
+            return RDGlobal.init();
         }
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)

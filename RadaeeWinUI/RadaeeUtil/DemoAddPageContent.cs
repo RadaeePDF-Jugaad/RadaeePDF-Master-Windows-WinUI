@@ -42,10 +42,10 @@ namespace RadaeeWinUI.RadaeeUtil
             content.TextMove(pdfx, pdfy);
             content.DrawText(text);
             content.TextEnd();
-            bool r = page.AddContent(content, true);
+            bool result = page.AddContent(content, true);
             page.Close();
 
-            return r;
+            return result;
         }
 
         public bool AddImagePageContent(PDFDoc doc, int pageIndex, WriteableBitmap image, bool hasAlpha, bool interpolate, float pdfx, float pdfy, float width, float height)

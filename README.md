@@ -46,7 +46,11 @@ You must enable Developer Mode on Windows:
 
 ## Git and Git LFS
 
-This repository uses **Git LFS** to store large binary files (such as the `*.lib` libraries).  
+> **Note on Large Library Files**
+> The dynamic link library (`*.lib`) files in this repository are very large (several hundred MB each). This is because WinUI Release builds expand all inline functions during compilation, which significantly increases the instruction size and results in much larger static library files.
+
+In this case, **Git LFS** is required to handle these large binary files efficiently.
+
 All developers **must** have Git LFS correctly installed and configured, both on **Windows** and **macOS**, otherwise the project will not build correctly.
 
 ### macOS (with Homebrew)
@@ -135,7 +139,7 @@ To quickly test the RadaeePDF SDK demo:
 
 Before using RadaeePDF, initialize the library with your license key:
 
-1. Modify the 'RDGlobal.cs' file under namespace 'com.radaee.master', to add your license key:
+1. Modify the 'RDGlobal.cs' file under namespace 'RadaeeWinUI.RadaeeUtil', to add your license key:
 ```csharp
 static public bool init()
 {
@@ -147,7 +151,7 @@ static public bool init()
 
 2. Add the following code to your 'App' class to initialize and activate the library:
 ```csharp
-using com.radaee.master;
+using RadaeeWinUI.RadaeeUtil;
 
 sealed partial class App : Application
 {
@@ -223,13 +227,13 @@ int pageCount = m_doc.PageCount;
 ### Navigate to a Specific Page
 
 ```csharp
-ViewModel.GoToPage(5); // Go to page 5
+MainViewModel.GoToPage(5); // Go to page 5
 ```
 
 ### Set View Mode
 
 ```csharp
-ViewModel.PDFViewModel.SwitchViewMode(ViewMode.VerticalContinuous); // Vertical scroll mode
+MainViewModel.ViewModel.PDFViewModel.SwitchViewMode(ViewMode.VerticalContinuous); // Vertical scroll mode
 ```
 
 ### Text Highlighting (Professional License)

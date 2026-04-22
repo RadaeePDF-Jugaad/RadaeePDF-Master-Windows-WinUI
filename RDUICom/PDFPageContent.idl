@@ -1,9 +1,55 @@
+import "PDFResForm.idl";
+import "PDFResFont.idl";
+import "PDFResGState.idl";
+import "PDFResImage.idl";
+import "PDFPageTag.idl";
+import "RDPath.idl";
+import "RDMatrix.idl";
+
 namespace RDUILib
 {
+    struct PDFTextRet
+    {
+        Int32 num_unicodes;
+        Int32 num_lines;
+    };
     [default_interface]
     runtimeclass PDFPageContent
     {
-        PDFPageContent(Int64 hand);
+        PDFPageContent();
         Int64 Handle{ get; };
+        void ClipPath(RDPath path, Boolean winding);
+        void DrawForm(PDFResForm form);
+        void DrawImage(PDFResImage img);
+        void DrawText(String text);
+        Int32 DrawText(String text, Int32 align, Single width);
+        PDFTextRet DrawText(String text, Int32 align, Single width, Int32 max_lines);
+        void FillPath(RDPath path, Boolean winding);
+        RDPoint GetTextSize(String text, PDFResFont pfont, Single width, Single height, Single char_space, Single word_space);
+        void GSRestore();
+        void GSSave();
+        void GSSet(PDFResGState gs);
+        void GSSetMatrix(RDMatrix mat);
+        void SetFillColor(UInt32 color);
+        void SetStrokeCap(Int32 cap);
+        void SetStrokeColor(UInt32 color);
+        void SetStrokeDash(Single[] dash, Single phase);
+        void SetStrokeJoin(Int32 join);
+        void SetStrokeMiter(Single miter);
+        void SetStrokeWidth(Single w);
+        void StrokePath(RDPath path);
+        void TagEnd();
+        void TagStart(PDFPageTag tag);
+        void TextBegin();
+        void TextEnd();
+        void TextMove(Single x, Single y);
+        void TextNextLine();
+        void TextSetCharSpace(Single space);
+        void TextSetFont(PDFResFont font, Single size);
+        void TextSetHScale(Int32 scale);
+        void TextSetLeading(Single leading);
+        void TextSetRenderMode(Int32 mode);
+        void TextSetRise(Single rise);
+        void TextSetWordSpace(Single space);
     }
 }
