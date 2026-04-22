@@ -87,6 +87,11 @@ namespace winrt::RDUILib::implementation
         {
             return PDF_Document_setPageRotate(m_doc, pageno, degree);
         }
+        RDPoint MaxPageSize()
+        {
+            PDF_POINT pt = PDF_Document_getPagesMaxSize(m_doc);
+			return *(RDPoint *)&pt;
+        }
     private:
         PDF_DOC m_doc;
     };

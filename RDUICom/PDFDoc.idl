@@ -1,3 +1,4 @@
+import "RDGlobal.idl";
 import "PDFDocTag.idl";
 import "PDFOutline.idl";
 import "PDFPage.idl";
@@ -23,6 +24,7 @@ namespace RDUILib
         Single GetPageWidth(Int32 pageno);
         Single GetPageHeight(Int32 pageno);
         PDFPage GetPage(Int32 pageno);
+        RDPoint MaxPageSize{ get; };
         void Close();
         PDFOutline GetRootOutline();
         Boolean AddRootOutline(String label, Int32 dest, Single y);

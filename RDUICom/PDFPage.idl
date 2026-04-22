@@ -87,13 +87,18 @@ namespace RDUILib
 		void SetPGEditorModified(Boolean modified);
 		Int32 Sign(PDFDocForm form, RDRect rect, String cert_file, String pswd, String name, String reason, String location, String contact);
 		Boolean UpdateWithPGEditor();
-		void ObjsStart();
+		Int32 ObjsAlignWord(Int32 index, Int32 dir);
 		Int32 ObjsGetCharCount();
 		String ObjsGetCharFontName(Int32 index);
+		Int32 ObjsGetCharIndex(Single x, Single y);
+		Int32 ObjsGetCharIndex2(Single x, Single y);
+		RDRect ObjsGetCharRect(Int32 index);
+		Int32[] ObjsGetImageInfo(Int32 index);
 		String ObjsGetString(Int32 from, Int32 to);
 		Boolean ObjsRemove(Int32[] ranges, Boolean reload);
 		Boolean ObjsSetImageJPEG(Int32 index, String path, Boolean interpolate);
-		RDRect ObjsGetCharRect(Int32 index);
-		Int32 ObjsAlignWord(Int32 index, Int32 dir);
+		Boolean ObjsSetImageJPEGByMem(Int32 index, byte[] buf, Boolean interpolate);
+		Boolean ObjsSetImageJPX(Int32 index, String path, Boolean interpolate);
+		void ObjsStart();
 	}
 }

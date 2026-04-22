@@ -8,12 +8,12 @@ import "RDMatrix.idl";
 
 namespace RDUILib
 {
-    struct PDFTextRet
-    {
-        Int32 num_unicodes;
-        Int32 num_lines;
-    };
-    [default_interface]
+	struct PDFTextRet
+	{
+		Int32 num_unicodes;
+		Int32 num_lines;
+	};
+	[default_interface]
     runtimeclass PDFPageContent
     {
         PDFPageContent();

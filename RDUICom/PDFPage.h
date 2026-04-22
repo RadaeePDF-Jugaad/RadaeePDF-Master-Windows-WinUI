@@ -25,16 +25,10 @@ namespace winrt::RDUILib::implementation
 		}
 		void Close()
 		{
-			try {
-				if (m_page)
-				{
-					PDF_Page_close(m_page);
-					m_page = NULL;
-				}
-			}
-			catch (...)
+			if (m_page)
 			{
-				//ignore
+				PDF_Page_close(m_page);
+				m_page = NULL;
 			}
 		}
 		RDRect CropBox()
