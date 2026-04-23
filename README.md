@@ -47,7 +47,9 @@ You must enable Developer Mode on Windows:
 ## Git and Git LFS
 
 > **Note on Large Library Files**
-> The dynamic link library (`*.lib`) files in this repository are very large (several hundred MB each). This is because WinUI Release builds expand all inline functions during compilation, which significantly increases the instruction size and results in much larger static library files.
+> The static library (`*.lib`) files in this repository are very large (several hundred MB each). This is because WinUI Release builds expand all inline functions during compilation, which significantly increases the instruction size and results in much larger static library files.
+>
+> **Important:** These `*.lib` files are only required by the dynamic library project **RDUICom**. Once RDUICom is successfully built, it outputs normal-sized dynamic library files (`*.dll` and `*.winmd`) that are used by the application project **RadaeeWinUI**. When deploying your application, you do **not** need to include the large `*.lib` files—only the compiled `*.dll` and `*.winmd` files are required.
 
 In this case, **Git LFS** is required to handle these large binary files efficiently.
 
