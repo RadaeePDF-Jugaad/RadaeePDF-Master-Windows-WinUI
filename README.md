@@ -80,6 +80,13 @@ On Windows, install Git LFS using one of the following options:
   git lfs install
   ```
 
+  Optional: you can also install Git LFS with winget:
+
+  ```powershell
+  winget install -e --id GitHub.GitLFS
+  git lfs install
+  ```
+
 Then clone the repository:
 
 ```powershell
