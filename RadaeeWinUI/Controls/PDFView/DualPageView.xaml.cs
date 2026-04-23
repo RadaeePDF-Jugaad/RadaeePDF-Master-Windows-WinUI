@@ -11,6 +11,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
+using Windows.Foundation;
+using System.IO;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace RadaeeWinUI.Controls.PDFView
 {
@@ -20,8 +23,10 @@ namespace RadaeeWinUI.Controls.PDFView
         private ILayoutManager? _layoutManager;
         private Dictionary<int, PageContainer> _pageContainers = new();
         private Dictionary<int, CancellationTokenSource> _renderCancellationTokens = new();
+        private DispatcherTimer? _resizeDebounceTimer;
         private bool _isLoaded = false;
         private bool _needsInitialization = false;
+        private bool _isResizing = false;
         private int _currentBasePage = 0;
         private GestureRecognizer? _gestureRecognizer;
 
@@ -30,7 +35,15 @@ namespace RadaeeWinUI.Controls.PDFView
             InitializeComponent();
             Loaded += OnLoaded;
             SizeChanged += OnSizeChanged;
+            InitializeResizeDebounceTimer();
             InitializeGestureRecognizer();
+        }
+
+        private void InitializeResizeDebounceTimer()
+        {
+            _resizeDebounceTimer = new DispatcherTimer();
+            _resizeDebounceTimer.Interval = TimeSpan.FromMilliseconds(200);
+            _resizeDebounceTimer.Tick += OnResizeDebounceTimerTick;
         }
 
         private void InitializeGestureRecognizer()
@@ -132,11 +145,14 @@ namespace RadaeeWinUI.Controls.PDFView
         public override void PDFVClose()
         {
             CancelAllRenders();
+            _resizeDebounceTimer?.Stop();
+            _isResizing = false;
             _gestureRecognizer?.Dispose();
             _gestureRecognizer = null;
             ClearAllPages();
             mPDFDoc = null;
             _renderService?.ClearCache();
+            _renderService?.ClearTileCache();
         }
 
         private void InitializeLayout()
@@ -417,6 +433,9 @@ namespace RadaeeWinUI.Controls.PDFView
 
         private async Task RenderPageAsync(int pageIndex)
         {
+            if (_isResizing)
+                return;
+
             if (mPDFDoc == null || !mPDFDoc.IsOpened || _renderService == null)
                 return;
 
@@ -445,18 +464,93 @@ namespace RadaeeWinUI.Controls.PDFView
                 int renderWidth = (int)(pageWidth * _scale);
                 int renderHeight = (int)(pageHeight * _scale);
 
+                // Compute viewport rect in page-local pixel coordinates
+                Rect? viewportRect = null;
+                if (_layoutManager != null)
+                {
+                    var pagePos = _layoutManager.GetPagePosition(pageIndex);
+                    double vpWidth = MainScrollViewer.ViewportWidth > 0 ? MainScrollViewer.ViewportWidth : (ActualWidth > 0 ? ActualWidth : 800);
+                    double vpHeight = MainScrollViewer.ViewportHeight > 0 ? MainScrollViewer.ViewportHeight : (ActualHeight > 0 ? ActualHeight : 600);
+
+                    double localLeft = Math.Max(0, -pagePos.x);
+                    double localTop = Math.Max(0, -pagePos.y);
+                    double localRight = Math.Min(renderWidth, vpWidth - pagePos.x);
+                    double localBottom = Math.Min(renderHeight, vpHeight - pagePos.y);
+
+                    if (localRight > localLeft && localBottom > localTop)
+                    {
+                        viewportRect = new Rect(localLeft, localTop, localRight - localLeft, localBottom - localTop);
+                    }
+                }
+
                 var options = new RenderOptions
                 {
                     Scale = _scale,
                     RenderMode = RD_RENDER_MODE.mode_best,
-                    ShowAnnotations = true
+                    ShowAnnotations = true,
+                    ViewportRect = viewportRect
                 };
 
-                var bitmap = await _renderService.RenderPageAsync(page, renderWidth, renderHeight, options, cts.Token);
-                
-                if (bitmap != null && !cts.Token.IsCancellationRequested && _pageContainers.TryGetValue(pageIndex, out var container))
+                // Try to get from page cache first
+                string cacheKey = _renderService.GenerateCacheKey(pageIndex, renderWidth, renderHeight, options);
+                var cachedBitmap = _renderService.GetCachedPage(cacheKey);
+
+                WriteableBitmap? bitmap = cachedBitmap;
+
+                // Cache miss - render using tiled approach with progressive display
+                if (bitmap == null && !cts.Token.IsCancellationRequested)
                 {
-                    container.PageImageControl.Source = bitmap;
+                    bitmap = new WriteableBitmap(renderWidth, renderHeight);
+                    if (_pageContainers.TryGetValue(pageIndex, out var container))
+                    {
+                        container.PageImageControl.Source = bitmap;
+                    }
+
+                    var targetBitmap = bitmap;
+                    int bitmapWidth = renderWidth;
+
+                    await _renderService.RenderPageTiledAsync(
+                        pageIndex, page, renderWidth, renderHeight, options,
+                        tileCallback: (result) =>
+                        {
+                            if (!result.Success || result.PixelData == null || cts.Token.IsCancellationRequested)
+                                return;
+                            DispatcherQueue.TryEnqueue(() =>
+                            {
+                                if (cts.Token.IsCancellationRequested) return;
+                                try
+                                {
+                                    var tile = result.Tile;
+                                    using (var stream = targetBitmap.PixelBuffer.AsStream())
+                                    {
+                                        int bytesPerPixel = 4;
+                                        int tileStride = tile.Width * bytesPerPixel;
+                                        int bmpStride = bitmapWidth * bytesPerPixel;
+                                        for (int row = 0; row < tile.Height; row++)
+                                        {
+                                            stream.Seek((tile.Y + row) * bmpStride + tile.X * bytesPerPixel, SeekOrigin.Begin);
+                                            stream.Write(result.PixelData, row * tileStride, tileStride);
+                                        }
+                                    }
+                                    targetBitmap.Invalidate();
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"Error writing tile to bitmap: {ex.Message}");
+                                }
+                            });
+                        },
+                        cancellationToken: cts.Token
+                    );
+
+                    if (!cts.Token.IsCancellationRequested)
+                    {
+                        _renderService.CacheRenderedPage(cacheKey, bitmap);
+                    }
+                }
+                else if (bitmap != null && !cts.Token.IsCancellationRequested && _pageContainers.TryGetValue(pageIndex, out var cachedContainer))
+                {
+                    cachedContainer.PageImageControl.Source = bitmap;
                 }
             }
             catch (OperationCanceledException)
@@ -554,12 +648,23 @@ namespace RadaeeWinUI.Controls.PDFView
         {
             if (e.NewSize.Width > 0 && e.NewSize.Height > 0)
             {
-                _renderService?.ClearCache();
+                _isResizing = true;
                 CancelAllRenders();
-                
-                InitializeLayout();
-                RenderCurrentPages();
+                _resizeDebounceTimer?.Stop();
+                _resizeDebounceTimer?.Start();
             }
+        }
+
+        private void OnResizeDebounceTimerTick(object? sender, object e)
+        {
+            _resizeDebounceTimer?.Stop();
+            _isResizing = false;
+
+            _renderService?.ClearCache();
+            _renderService?.ClearTileCache();
+
+            InitializeLayout();
+            RenderCurrentPages();
         }
     }
 }

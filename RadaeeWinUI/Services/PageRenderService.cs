@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
 using RDUILib;
 using RadaeeWinUI.Models;
+using Windows.Foundation;
 
 namespace RadaeeWinUI.Services
 {
@@ -20,6 +21,9 @@ namespace RadaeeWinUI.Services
         private readonly object _lruLock = new();
         private const int MaxCacheSize = 50;
         private int _cacheAccessCounter = 0;
+
+        private readonly ConcurrentDictionary<string, byte[]> _tileCache = new();
+        private const int MaxTileCacheEntries = 200;
 
         private class CacheEntry
         {
@@ -224,6 +228,251 @@ namespace RadaeeWinUI.Services
                 return pageIndex;
             }
             return -1;
+        }
+
+        public async Task RenderPageTiledAsync(int pageIndex, PDFPage page, int width, int height, RenderOptions options, Action<TileRenderResult> tileCallback, CancellationToken cancellationToken = default)
+        {
+            if (width <= 0 || height <= 0)
+                return;
+
+            try
+            {
+                int tileSize = options.TileSize > 0 ? options.TileSize : 512;
+                var tiles = GenerateTileGrid(width, height, tileSize);
+                AssignTilePriorities(tiles, options.ViewportRect);
+
+                var sortedTiles = tiles.OrderBy(t => (int)t.Priority)
+                                       .ThenBy(t => t.Row)
+                                       .ThenBy(t => t.Col)
+                                       .ToList();
+
+                // Render tiles sequentially in a single Task.Run (COM thread safety).
+                // After each tile, invoke tileCallback so the caller can write
+                // the tile data into a WriteableBitmap on the UI thread.
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        foreach (var tile in sortedTiles)
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                break;
+
+                            string tileCacheKey = tile.GetCacheKey(pageIndex, options.Scale, options.ShowAnnotations);
+
+                            // Check tile cache
+                            if (_tileCache.TryGetValue(tileCacheKey, out var cachedData))
+                            {
+                                tileCallback(new TileRenderResult(tile, cachedData, true));
+                                continue;
+                            }
+
+                            // Render the tile
+                            byte[]? tileData = RenderSingleTile(page, tile, options, height, cancellationToken);
+
+                            if (tileData != null && !cancellationToken.IsCancellationRequested)
+                            {
+                                CacheTileData(tileCacheKey, tileData);
+                                tileCallback(new TileRenderResult(tile, tileData, true));
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Expected during cancellation
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error in tiled rendering: {ex.Message}");
+                    }
+                }, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during cancellation
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in tiled rendering outer: {ex.Message}");
+            }
+        }
+
+        private List<TileInfo> GenerateTileGrid(int pageWidth, int pageHeight, int tileSize)
+        {
+            var tiles = new List<TileInfo>();
+            int cols = (int)Math.Ceiling((double)pageWidth / tileSize);
+            int rows = (int)Math.Ceiling((double)pageHeight / tileSize);
+
+            for (int row = 0; row < rows; row++)
+            {
+                for (int col = 0; col < cols; col++)
+                {
+                    int x = col * tileSize;
+                    int y = row * tileSize;
+                    int w = Math.Min(tileSize, pageWidth - x);
+                    int h = Math.Min(tileSize, pageHeight - y);
+
+                    tiles.Add(new TileInfo
+                    {
+                        Row = row,
+                        Col = col,
+                        X = x,
+                        Y = y,
+                        Width = w,
+                        Height = h,
+                        Priority = TilePriority.Low
+                    });
+                }
+            }
+
+            return tiles;
+        }
+
+        private void AssignTilePriorities(List<TileInfo> tiles, Rect? viewportRect)
+        {
+            if (viewportRect == null || viewportRect.Value.IsEmpty)
+            {
+                // No viewport info: all tiles are high priority
+                foreach (var tile in tiles)
+                    tile.Priority = TilePriority.High;
+                return;
+            }
+
+            var vp = viewportRect.Value;
+
+            foreach (var tile in tiles)
+            {
+                double overlapRatio = tile.GetViewportOverlapRatio(vp);
+
+                if (overlapRatio >= 0.5)
+                    tile.Priority = TilePriority.High;
+                else if (overlapRatio > 0)
+                    tile.Priority = TilePriority.Medium;
+                else
+                    tile.Priority = TilePriority.Low;
+            }
+        }
+
+        private byte[]? RenderSingleTile(PDFPage page, TileInfo tile, RenderOptions options, int pageHeightPixels, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    return null;
+
+                RDDIB tileDib = new RDDIB(tile.Width, tile.Height);
+
+                // Reset tile to background color
+                tileDib.Reset(options.BackgroundColor);
+
+                // Create transform matrix for this tile:
+                // The matrix maps PDF coordinates to pixel coordinates.
+                // For the full page: mat = (scale, 0, 0, -scale, 0, pageHeight)
+                // For a tile at pixel offset (tileX, tileY): shift by (-tileX, -tileY)
+                // So: mat = (scale, 0, 0, -scale, -tileX, pageHeight - tileY)
+                RDMatrix tileMat = new RDMatrix(
+                    options.Scale, 0, 0, -options.Scale,
+                    -tile.X, pageHeightPixels - tile.Y
+                );
+
+                if (cancellationToken.IsCancellationRequested)
+                    return null;
+
+                page.RenderPrepare();
+                bool success = page.Render(tileDib, tileMat, options.ShowAnnotations, options.RenderMode);
+                if (success)
+                {
+                    return tileDib.Data;
+                }
+
+                return null;
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error rendering single tile: {ex.Message}");
+                return null;
+            }
+        }
+
+        private void ComposeTileIntoBuffer(byte[] tileData, TileInfo tile, byte[] composedBuffer, int pageWidth)
+        {
+            int bytesPerPixel = 4;
+            int tileStride = tile.Width * bytesPerPixel;
+            int pageStride = pageWidth * bytesPerPixel;
+
+            for (int row = 0; row < tile.Height; row++)
+            {
+                int srcOffset = row * tileStride;
+                int dstOffset = (tile.Y + row) * pageStride + tile.X * bytesPerPixel;
+
+                if (srcOffset + tileStride <= tileData.Length && dstOffset + tileStride <= composedBuffer.Length)
+                {
+                    Buffer.BlockCopy(tileData, srcOffset, composedBuffer, dstOffset, tileStride);
+                }
+            }
+        }
+
+        private WriteableBitmap? CreateBitmapFromBuffer(byte[] buffer, int width, int height)
+        {
+            try
+            {
+                WriteableBitmap bitmap = new WriteableBitmap(width, height);
+                using (var stream = bitmap.PixelBuffer.AsStream())
+                {
+                    stream.Write(buffer, 0, Math.Min(buffer.Length, width * height * 4));
+                }
+                bitmap.Invalidate();
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating bitmap from buffer: {ex.Message}");
+                return null;
+            }
+        }
+
+        private void CacheTileData(string tileCacheKey, byte[] tileData)
+        {
+            // Evict oldest entries if cache is full
+            if (_tileCache.Count >= MaxTileCacheEntries)
+            {
+                // Simple eviction: remove first 10% of entries
+                var keysToRemove = _tileCache.Keys.Take(MaxTileCacheEntries / 10).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _tileCache.TryRemove(key, out _);
+                }
+            }
+
+            _tileCache[tileCacheKey] = tileData;
+        }
+
+        private int ExtractPageIndexFromOptions(RenderOptions options)
+        {
+            // Fallback: return -1 if page index cannot be determined from options alone
+            // The caller should provide the proper page index via the cache key
+            return -1;
+        }
+
+        public void ClearTileCache()
+        {
+            _tileCache.Clear();
+        }
+
+        public void ClearTileCache(int pageIndex)
+        {
+            var keysToRemove = _tileCache.Keys
+                .Where(k => k.StartsWith($"tile_{pageIndex}_"))
+                .ToList();
+
+            foreach (var key in keysToRemove)
+            {
+                _tileCache.TryRemove(key, out _);
+            }
         }
 
         public void CancelRender(int pageIndex)
