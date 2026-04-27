@@ -1324,7 +1324,7 @@ namespace RadaeeWinUI.ViewModels
                 NavigateToSearchResult(_currentSearchIndex);
             }
 
-            SearchProgress = $"搜索中... {visiblePagesSet.Count}/{pageCount} 页，找到 {visibleResultCount} 个结果";
+            SearchProgress = $"Searching... {visiblePagesSet.Count}/{pageCount} pages, found {visibleResultCount} results";
 
             // Phase 2: Search remaining pages asynchronously in background
             var remainingPages = new List<int>();
@@ -1386,7 +1386,7 @@ namespace RadaeeWinUI.ViewModels
                             }
 
                             processedPages += (batchEnd - batchStart);
-                            SearchProgress = $"搜索中... {processedPages}/{pageCount} 页，找到 {SearchResultCount} 个结果";
+                            SearchProgress = $"Searching... {processedPages}/{pageCount} pages, found {SearchResultCount} results";
 
                             // Refresh highlights if we have results and user is still on a page with results
                             if (SearchResultCount > 0 && _currentSearchIndex >= 0)
