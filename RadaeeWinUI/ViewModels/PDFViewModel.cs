@@ -80,12 +80,25 @@ namespace RadaeeWinUI.ViewModels
         public PDFPageState CurrentState
         {
             get => _currentState;
-            set => SetProperty(ref _currentState, value);
+            set
+            {
+                if (SetProperty(ref _currentState, value))
+                {
+                    if (_currentPDFView != null)
+                        _currentPDFView.DragScrollEnabled = value == PDFPageState.Normal;
+                }
+            }
         }
         public Controls.PDFView.PDFView? CurrentPDFView
         {
             get => _currentPDFView;
-            private set => SetProperty(ref _currentPDFView, value);
+            private set
+            {
+                if (SetProperty(ref _currentPDFView, value) && value != null)
+                {
+                    value.DragScrollEnabled = _currentState == PDFPageState.Normal;
+                }
+            }
         }
         public ViewMode ViewMode
         {
@@ -283,53 +296,51 @@ namespace RadaeeWinUI.ViewModels
                 // Get render parameters based on current view type
                 int renderWidth, renderHeight;
                 RenderOptions options;
+                float pageWidth = CurrentPDFView.vPageGetWidth(pageIndex);
+                float pageHeight = CurrentPDFView.vPageGetHeight(pageIndex);
+                float scale;
                 if (CurrentPDFView is SinglePageView singleView)
                 {
-                    float pageWidth = CurrentPDFView.vPageGetWidth(pageIndex);
-                    float pageHeight = CurrentPDFView.vPageGetHeight(pageIndex);
                     double availableWidth = singleView.ActualWidth > 0 ? singleView.ActualWidth : 800;
                     double availableHeight = singleView.ActualHeight > 0 ? singleView.ActualHeight : 600;
-                    float scale = (float)Math.Max(availableWidth / pageWidth, availableHeight / pageHeight) * CurrentPDFView.ZoomLevel;
-                    renderWidth = (int)(pageWidth * scale);
-                    renderHeight = (int)(pageHeight * scale);
-                    options = new RenderOptions
-                    {
-                        Scale = scale,
-                        RenderMode = RD_RENDER_MODE.mode_best,
-                        ShowAnnotations = true
-                    };
+                    scale = (float)Math.Min(availableWidth / pageWidth, availableHeight / pageHeight) * CurrentPDFView.ZoomLevel;
                 }
-                else if (CurrentPDFView is VerticalScrollView || CurrentPDFView is HorizontalScrollView)
+                else if (CurrentPDFView is VerticalScrollView vertView)
                 {
-                    float pageWidth = CurrentPDFView.vPageGetWidth(pageIndex);
-                    float pageHeight = CurrentPDFView.vPageGetHeight(pageIndex);
-                    float scale;
-                    if (CurrentPDFView is VerticalScrollView vertView)
-                    {
-                        double viewportWidth = vertView.ActualWidth > 0 ? vertView.ActualWidth : 800;
-                        scale = (float)(viewportWidth / pageWidth);
-                    }
-                    else
-                    {
-                        double viewportHeight = ((HorizontalScrollView)CurrentPDFView).ActualHeight > 0 ? ((HorizontalScrollView)CurrentPDFView).ActualHeight : 600;
-                        scale = (float)(viewportHeight / pageHeight);
-                    }
-                    renderWidth = (int)(pageWidth * scale);
-                    renderHeight = (int)(pageHeight * scale);
-                    options = new RenderOptions
-                    {
-                        Scale = scale,
-                        RenderMode = RD_RENDER_MODE.mode_best,
-                        ShowAnnotations = true
-                    };
+                    double viewportWidth = vertView.ActualWidth > 0 ? vertView.ActualWidth : 800;
+                    scale = (float)(viewportWidth / pageWidth);
+                }
+                else if (CurrentPDFView is HorizontalScrollView horzView)
+                {
+                    double viewportHeight = horzView.ActualHeight > 0 ? horzView.ActualHeight : 600;
+                    scale = (float)(viewportHeight / pageHeight);
+                }
+                else if (CurrentPDFView is DualPageView dualView)
+                {
+                    double viewportWidth = dualView.ActualWidth > 0 ? dualView.ActualWidth : 800;
+                    scale = (float)(viewportWidth / (pageWidth * 2)) * CurrentPDFView.ZoomLevel;
+                }
+                else if (CurrentPDFView is DualPageScrollView dualScrollView)
+                {
+                    double viewportWidth = dualScrollView.ActualWidth > 0 ? dualScrollView.ActualWidth : 800;
+                    float basePageWidth = CurrentPDFView.vPageGetWidth(0);
+                    scale = (float)(viewportWidth / (basePageWidth * 2)) * CurrentPDFView.ZoomLevel;
                 }
                 else
                 {
-                    // Fallback for other view types - use ClearCache + InvalidatePage
+                    // Fallback for unknown view types
                     _renderService.ClearCache(pageIndex);
                     CurrentPDFView.InvalidatePage(pageIndex);
                     return;
                 }
+                renderWidth = (int)(pageWidth * scale);
+                renderHeight = (int)(pageHeight * scale);
+                options = new RenderOptions
+                {
+                    Scale = scale,
+                    RenderMode = RD_RENDER_MODE.mode_best,
+                    ShowAnnotations = true
+                };
                 // Synchronously refresh the cache
                 await _renderService.RefreshPageCacheAsync(pageIndex, page, renderWidth, renderHeight, options);
                 // Trigger view update
@@ -347,7 +358,7 @@ namespace RadaeeWinUI.ViewModels
         {
             if (type == AnnotationType.Select)
             {
-                _currentState = PDFPageState.Selection;
+                CurrentState = PDFPageState.Selection;
             }
             else if (type == AnnotationType.Ink
                 || type == AnnotationType.Rectangle
@@ -359,12 +370,12 @@ namespace RadaeeWinUI.ViewModels
                 if (SelectedAnnotationType != type)
                 {
                     SelectedAnnotationType = type;
-                    _currentState = PDFPageState.Annotation;
+                    CurrentState = PDFPageState.Annotation;
                 }
                 else
                 {
                     SelectedAnnotationType = AnnotationType.None;
-                    _currentState = PDFPageState.Normal;
+                    CurrentState = PDFPageState.Normal;
                 }
             }
             else if (type == AnnotationType.Highlight

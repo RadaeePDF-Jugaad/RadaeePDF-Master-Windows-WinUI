@@ -667,6 +667,19 @@ namespace RadaeeWinUI.Controls.PDFView
 
             _pointPressed = true;
 
+            // Start drag-to-scroll: capture pointer and record starting positions
+            if (DragScrollEnabled)
+            {
+                var svPoint = e.GetCurrentPoint(MainScrollViewer);
+                _dragStartX = svPoint.Position.X;
+                _dragStartY = svPoint.Position.Y;
+                _dragStartScrollX = MainScrollViewer.HorizontalOffset;
+                _dragStartScrollY = MainScrollViewer.VerticalOffset;
+                _dragPointerId = point.PointerId;
+                _isDragScrolling = false;
+                PageCanvas.CapturePointer(e.Pointer);
+            }
+
             float pdfX = ToPDFX(screenX, pageIndex);
             float pdfY = ToPDFY(screenY, pageIndex);
 
@@ -689,6 +702,28 @@ namespace RadaeeWinUI.Controls.PDFView
                 return;
 
             var point = e.GetCurrentPoint(PageCanvas);
+
+            // Handle drag-to-scroll
+            if (DragScrollEnabled && _dragPointerId == point.PointerId && point.Properties.IsLeftButtonPressed)
+            {
+                var svPoint = e.GetCurrentPoint(MainScrollViewer);
+                double deltaX = _dragStartX - svPoint.Position.X;
+                double deltaY = _dragStartY - svPoint.Position.Y;
+
+                if (!_isDragScrolling && (Math.Abs(deltaX) > 5 || Math.Abs(deltaY) > 5))
+                {
+                    _isDragScrolling = true;
+                }
+
+                if (_isDragScrolling)
+                {
+                    double newScrollX = _dragStartScrollX + deltaX;
+                    double newScrollY = _dragStartScrollY + deltaY;
+                    MainScrollViewer.ChangeView(newScrollX, newScrollY, null, true);
+                    return;
+                }
+            }
+
             float screenX = (float)point.Position.X;
             float screenY = (float)point.Position.Y;
 
@@ -714,7 +749,16 @@ namespace RadaeeWinUI.Controls.PDFView
 
         private void PageCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            bool wasDragging = _isDragScrolling;
             _pointPressed = false;
+            _isDragScrolling = false;
+            _dragPointerId = null;
+            if (DragScrollEnabled)
+                PageCanvas.ReleasePointerCaptures();
+
+            if (wasDragging)
+                return;
+
             var point = e.GetCurrentPoint(PageCanvas);
             float screenX = (float)point.Position.X;
             float screenY = (float)point.Position.Y;

@@ -17,6 +17,16 @@ namespace RadaeeWinUI.Controls.PDFView
         protected int _currentPageIndex = 0;
         protected Boolean _pointPressed = false;
 
+        // Drag-to-scroll state
+        protected bool _isDragScrolling = false;
+        protected double _dragStartX;
+        protected double _dragStartY;
+        protected double _dragStartScrollX;
+        protected double _dragStartScrollY;
+        protected uint? _dragPointerId = null;
+
+        public bool DragScrollEnabled { get; set; } = true;
+
         public int CurrentPageIndex => _currentPageIndex;
 
         public abstract Canvas? GetPageAnnotationCanvas(int pageIndex);
