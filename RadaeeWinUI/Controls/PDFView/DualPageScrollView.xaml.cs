@@ -772,7 +772,21 @@ namespace RadaeeWinUI.Controls.PDFView
             _renderService?.ClearTileCache();
 
             InitializeLayout();
+
+            // Track pages that existed before UpdateVisiblePages - they need
+            // re-rendering because the cache was just cleared.  Newly created
+            // pages will be rendered by CreatePageContainer already.
+            var existingPages = new HashSet<int>(_pageContainers.Keys);
+
             UpdateVisiblePages();
+
+            foreach (var pageIndex in existingPages)
+            {
+                if (_pageContainers.ContainsKey(pageIndex))
+                {
+                    _ = RenderPageAsync(pageIndex);
+                }
+            }
         }
     }
 }

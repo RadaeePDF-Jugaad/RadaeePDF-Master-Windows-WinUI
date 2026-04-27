@@ -25,6 +25,11 @@ namespace RadaeeWinUI.Services
         private readonly ConcurrentDictionary<string, byte[]> _tileCache = new();
         private const int MaxTileCacheEntries = 200;
 
+        // Serializes all native PDF library calls (PDF_Page_render, RDDIB, RDMatrix, etc.)
+        // to prevent concurrent access from multiple Task.Run threads which causes
+        // memory corruption crashes in the statically linked native library.
+        private readonly SemaphoreSlim _nativeRenderLock = new(1, 1);
+
         private class CacheEntry
         {
             public WriteableBitmap Bitmap { get; set; }
@@ -46,28 +51,43 @@ namespace RadaeeWinUI.Services
         {
             try
             {
-                byte[]? pixelData = await Task.Run(() =>
+                byte[]? pixelData = await Task.Run(async () =>
                 {
                     try
                     {
                         if (cancellationToken.IsCancellationRequested)
                             return null;
 
-                        RDDIB dib = new RDDIB(width, height);
-                        RDMatrix mat = CreateTransformMatrix(options.Scale, 0, 0, height);
-
-                        if (cancellationToken.IsCancellationRequested)
-                            return null;
-
-                        page.RenderPrepare();
-                        //bool success = page.Render(dib, mat, options.ShowAnnotations, options.RenderMode);
-                        bool success = page.Render(dib, mat, options.ShowAnnotations, options.RenderMode);
-
-                        if (success)
+                        await _nativeRenderLock.WaitAsync(cancellationToken);
+                        try
                         {
-                            return dib.Data;
-                        }
+                            if (cancellationToken.IsCancellationRequested)
+                                return null;
 
+                            RDDIB dib = new RDDIB(width, height);
+                            RDMatrix mat = CreateTransformMatrix(options.Scale, 0, 0, height);
+
+                            if (cancellationToken.IsCancellationRequested)
+                                return null;
+
+                            page.RenderPrepare();
+                            //bool success = page.Render(dib, mat, options.ShowAnnotations, options.RenderMode);
+                            bool success = page.Render(dib, mat, options.ShowAnnotations, options.RenderMode);
+
+                            if (success)
+                            {
+                                return dib.Data;
+                            }
+
+                            return null;
+                        }
+                        finally
+                        {
+                            _nativeRenderLock.Release();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
                         return null;
                     }
                     catch (Exception ex)
@@ -249,7 +269,9 @@ namespace RadaeeWinUI.Services
                 // Render tiles sequentially in a single Task.Run (COM thread safety).
                 // After each tile, invoke tileCallback so the caller can write
                 // the tile data into a WriteableBitmap on the UI thread.
-                await Task.Run(() =>
+                // The _nativeRenderLock is acquired per-tile so that cancellation
+                // can be checked between tiles and other page renders can interleave.
+                await Task.Run(async () =>
                 {
                     try
                     {
@@ -267,8 +289,17 @@ namespace RadaeeWinUI.Services
                                 continue;
                             }
 
-                            // Render the tile
-                            byte[]? tileData = RenderSingleTile(page, tile, options, height, cancellationToken);
+                            // Acquire lock before calling native render code
+                            await _nativeRenderLock.WaitAsync(cancellationToken);
+                            byte[]? tileData;
+                            try
+                            {
+                                tileData = RenderSingleTile(page, tile, options, height, cancellationToken);
+                            }
+                            finally
+                            {
+                                _nativeRenderLock.Release();
+                            }
 
                             if (tileData != null && !cancellationToken.IsCancellationRequested)
                             {

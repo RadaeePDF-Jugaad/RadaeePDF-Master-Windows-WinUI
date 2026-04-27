@@ -227,7 +227,6 @@ namespace RadaeeWinUI.RadaeeUtil
             String sver = RDUILib.RDGlobal.GetVersion();//this versioin string, example "20220225".
             //the key is binding to package "com.radaee.reader", can active version before "20260814"
             int ret = RDUILib.RDGlobal.Active("755836CA098838C0986F3123ECCAB01F9E84778014E59DA080D972017D2E78BF317E448DEBED21A16608F2884E925C46");
-            //int ret = RDUILib.RDGlobal.Active("52DE4976539BFCE23ABE988B73730A8F88C6CB9CAB13C76C92C6D3D28E717DD0224478233438C10FD5321E85E57E68FE");
             return ret == 3;
         }
 
