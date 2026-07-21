@@ -33,6 +33,7 @@ Before running the demo, ensure you have the following installed:
   - **WinUI desktop development** - Desktop development with WinUI 3 and C#, optionally for C++
   - **NuGet Package Manager 6.14.3** or later
   - **Desktop development with C++** - With C++ (v143) tools for native components
+  - **Extension:Single-project MSIX Packaging Tools for VS 2022-26**
   
 ### Windows SDK
 - **Windows 11 SDK (10.0.22621.0)** or later
