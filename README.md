@@ -1,4 +1,4 @@
-# RadaeePDF SDK Master for Windows (WinUI 3 - Beta)
+# RadaeePDF SDK Master for Windows (WinUI 3)
 <img src="https://www.radaeepdf.com/wp-content/uploads/2024/08/solo_butterly_midres.png" style="width:100px;"> 
 
 > **DISCLAIMER (BETA)**  
