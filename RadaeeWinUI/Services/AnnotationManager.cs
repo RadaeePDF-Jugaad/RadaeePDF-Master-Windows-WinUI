@@ -332,6 +332,40 @@ namespace RadaeeWinUI.Services
             });
         }
 
+        public async Task<PDFAnnot?> AddFieldEditboxAsync(PDFPage page, float x, float y, float width, float height, string name, bool multiLine, bool password, float fontSize = 12f)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    RDRect rect = new RDRect();
+                    rect.left = x;
+                    rect.top = y;
+                    rect.right = x + width;
+                    rect.bottom = y + height;
+
+                    bool success = page.AddFieldEditbox(rect, name, multiLine, password);
+                    if (success)
+                    {
+                        float centerX = x + width / 2;
+                        float centerY = y + height / 2;
+                        PDFAnnot annot = page.GetAnnot(centerX, centerY);
+                        if (annot != null)
+                        {
+                            annot.EditTextSize = fontSize;
+                            return annot;
+                        }
+                    }
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error adding field editbox: {ex.Message}");
+                    return null;
+                }
+            });
+        }
+
         private AnnotationType MapAnnotationType(int type)
         {
             return type switch

@@ -22,5 +22,6 @@ namespace RadaeeWinUI.Services
         Task<PDFAnnot?> GetAnnotationAtAsync(PDFPage page, float x, float y);
         Task<byte[]?> ExportAnnotationAsync(PDFAnnot annot);
         Task<bool> ImportAnnotationAsync(PDFPage page, float x, float y, float width, float height, byte[] data);
+        Task<PDFAnnot?> AddFieldEditboxAsync(PDFPage page, float x, float y, float width, float height, string name, bool multiLine, bool password, float fontSize = 12f);
     }
 }

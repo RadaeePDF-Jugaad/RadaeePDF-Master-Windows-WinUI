@@ -14,6 +14,7 @@ namespace RadaeeWinUI.Models
         Ink = 8,
         Polygon = 9,
         PolyLine = 10,
-        Select = 11
+        Select = 11,
+        EditBox = 12
     }
 }

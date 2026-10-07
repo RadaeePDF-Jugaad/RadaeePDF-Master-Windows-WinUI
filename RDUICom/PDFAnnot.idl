@@ -53,7 +53,7 @@ namespace RDUILib
         Int32 EditTextAlign{ get; set; };
         UInt32 EditTextColor{ get; set; };
         RDRect EditTextRect{ get; };
-        Single EditTextSize{ get; };
+        Single EditTextSize{ get; set; };
         Int32 EditType{ get; };
         String FieldFullName{ get; };
         String FieldFullName2{ get; };

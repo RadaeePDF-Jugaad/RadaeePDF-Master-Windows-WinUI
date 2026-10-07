@@ -22,6 +22,9 @@
         <Button Content="Ellipse" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Ellipse}" ToolTipService.ToolTip="Draw ellipse"/>
         <Button Content="Line" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Line}" ToolTipService.ToolTip="Draw line"/>
         <Button Content="Ink" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Ink}" ToolTipService.ToolTip="Freehand drawing"/>
+
+        <Border Width="1" Background="Gray" Margin="4,0"/>
+        <Button Content="Edit Box" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.EditBox}" ToolTipService.ToolTip="Add form text field"/>
         
         <Border Width="1" Background="Gray" Margin="4,0"/>
         

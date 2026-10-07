@@ -365,7 +365,8 @@ namespace RadaeeWinUI.ViewModels
                 || type == AnnotationType.Ellipse
                 || type == AnnotationType.Line
                 || type == AnnotationType.Polygon
-                || type == AnnotationType.TextNote)
+                || type == AnnotationType.TextNote
+                || type == AnnotationType.EditBox)
             {
                 if (SelectedAnnotationType != type)
                 {
@@ -444,6 +445,14 @@ namespace RadaeeWinUI.ViewModels
             if (CurrentPDFView == null)
                 return false;
             return await _annotationManager.AddInkAsync(page, ink, StrokeWidth / CurrentPDFView.PDFScale, StrokeColor);
+        }
+        public async Task<PDFAnnot?> AddFieldEditboxAsync(PDFPage page, float x, float y, float width, float height, string name, bool multiLine = false, bool password = false, float fontSize = 12f)
+        {
+            return await _annotationManager.AddFieldEditboxAsync(page, x, y, width, height, name, multiLine, password, fontSize);
+        }
+        private string GenerateFieldName()
+        {
+            return $"editbox_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
         }
         public async Task<bool> UpdateAnnotationAsync(PDFAnnot annot, AnnotationData data)
         {
@@ -672,6 +681,9 @@ namespace RadaeeWinUI.ViewModels
                 case AnnotationType.Polygon:
                     drawPolygon(endPoint, _annotPageIndex);
                     break;
+                case AnnotationType.EditBox:
+                    drawRectangle(endPoint, _annotPageIndex);
+                    break;
                 case AnnotationType.Ink:
                     if (_currentInk != null)
                     {
@@ -898,6 +910,19 @@ namespace RadaeeWinUI.ViewModels
                         break;
                     case AnnotationType.Polygon:
                         //await AddPolygonAsync(page, left, top, width, height);
+                        break;
+                    case AnnotationType.EditBox:
+                        if (width > 1 && height > 1)
+                        {
+                            string fieldName = GenerateFieldName();
+                            var editBoxAnnot = await AddFieldEditboxAsync(_annotPage, left, top, width, height, fieldName);
+                            if (editBoxAnnot != null)
+                            {
+                                await RefreshPageAfterEditAsync(_annotPageIndex);
+                                SelectedAnnotationType = AnnotationType.None;
+                                CurrentState = PDFPageState.Normal;
+                            }
+                        }
                         break;
                     case AnnotationType.Ink:
                         if (_currentInk != null)
