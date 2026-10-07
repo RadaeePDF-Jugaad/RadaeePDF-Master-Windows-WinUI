@@ -1,8 +1,10 @@
 ﻿using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
@@ -12,26 +14,12 @@ namespace RadaeeWinUI.RadaeeUtil
 {
     public sealed class RDGlobal
     {
-        static private string GetInstalledPath()
-        {
-            try
-            {
-                return AppContext.BaseDirectory.TrimEnd('\\');
-                //return Package.Current.InstalledLocation.Path;
-            }
-            catch
-            {
-                // Unpackaged mode: Package.Current is not available
-                return AppContext.BaseDirectory.TrimEnd('\\');
-            }
-        }
-
         static private bool ms_loaded = false;
         static private void load_data()
         {
             if (ms_loaded) return;
             ms_loaded = true;
-            String inst_path = GetInstalledPath();
+            String inst_path = Package.Current.InstalledLocation.Path;
             String cmap_path = inst_path + "\\Assets\\dat\\cmaps.dat";
             String umap_path = inst_path + "\\Assets\\dat\\umaps.dat";
             String cmyk_path = inst_path + "\\Assets\\dat\\cmyk_rgb.dat";
@@ -181,67 +169,120 @@ namespace RadaeeWinUI.RadaeeUtil
             RDUILib.RDGlobal.FontFileMapping("Symbol,BoldItalic", "Symbol Neu for Powerline");
             RDUILib.RDGlobal.FontFileMapping("Symbol,Italic", "Symbol Neu for Powerline");
 
-            int face_first = 0;
+            // first available face, used as the last fallback of every font chain.
+            String? rand_fname = null;
             int face_count = RDUILib.RDGlobal.GetFaceCount();
-            String rand_fname = null;
-            uint sys_fonts = 0;
-            while (face_first < face_count)
+            for (int face_first = 0; face_first < face_count; face_first++)
             {
                 String fname = RDUILib.RDGlobal.GetFaceName(face_first);
-                if (fname != null)
+                if (fname != null && fname.Length > 0)
                 {
-                    if (fname.CompareTo("SimSun") == 0) sys_fonts |= 1;
-                    if (fname.CompareTo("Microsoft JHengHei") == 0 || fname.CompareTo("MingLiU") == 0) sys_fonts |= 2;
-                    if (fname.CompareTo("MS Gothic") == 0) sys_fonts |= 4;
-                    if (fname.CompareTo("Malgun Gothic Regular") == 0) sys_fonts |= 8;
-                }
-                if (rand_fname == null && fname != null && fname.Length > 0)
                     rand_fname = fname;
-                face_first++;
+                    break;
+                }
             }
-            // set default fonts.
-            if (sys_fonts > 0)
-            {
-                RDUILib.RDGlobal.SetDefaultFont("", "Calibri", true);
-                RDUILib.RDGlobal.SetDefaultFont("", "Times New Roman", false);
-                RDUILib.RDGlobal.SetDefaultFont("GB1", "SimSun", true);
-                RDUILib.RDGlobal.SetDefaultFont("GB1", "SimSun", false);
-                if (!RDUILib.RDGlobal.SetDefaultFont("CNS1", "Microsoft JHengHei", true))
-                    RDUILib.RDGlobal.SetDefaultFont("CNS1", "MingLiU", true);
-                if (!RDUILib.RDGlobal.SetDefaultFont("CNS1", "Microsoft JHengHei", false))
-                    RDUILib.RDGlobal.SetDefaultFont("CNS1", "MingLiU", false);
-                RDUILib.RDGlobal.SetDefaultFont("Japan1", "MS Gothic", true);
-                RDUILib.RDGlobal.SetDefaultFont("Japan1", "MS Gothic", false);
-                RDUILib.RDGlobal.SetDefaultFont("Korea1", "Malgun Gothic Regular", true);
-                RDUILib.RDGlobal.SetDefaultFont("Korea1", "Malgun Gothic Regular", false);
-                RDUILib.RDGlobal.SetAnnotFont("SimSun");
 
-                RDUILib.PDFEditNode.SetDefFont("Times New Roman");
-                RDUILib.PDFEditNode.SetDefCJKFont("SimSun");
-            }
-            else
+            // set default fonts.
+            // CJK system fonts may be missing (e.g. on EUR/US systems), so every collection
+            // has its own fallback chain, ending with the bundled "AR PL SungtiL GB" / Arimo.
+            SetDefaultFontChain("", true, "Calibri", "Arimo", rand_fname);
+            SetDefaultFontChain("", false, "Times New Roman", "TeXGyreTermes-Regular", "Arimo", rand_fname);
+            foreach (bool fixd in new bool[] { true, false })
             {
-                if (!RDUILib.RDGlobal.SetDefaultFont("", "AR PL SungtiL GB", true) && rand_fname != null)
-                    RDUILib.RDGlobal.SetDefaultFont("", rand_fname, true);
-                if (!RDUILib.RDGlobal.SetDefaultFont("", "AR PL SungtiL GB", false) && rand_fname != null)
-                    RDUILib.RDGlobal.SetDefaultFont("", rand_fname, false);
-                if (!RDUILib.RDGlobal.SetAnnotFont("AR PL SungtiL GB") && rand_fname != null)
-                    RDUILib.RDGlobal.SetAnnotFont(rand_fname);
-                RDUILib.PDFEditNode.SetDefFont("Arial");
-                RDUILib.PDFEditNode.SetDefCJKFont("AR PL SungtiL GB");
+                SetDefaultFontChain("GB1", fixd, "SimSun", "Microsoft YaHei", "AR PL SungtiL GB", rand_fname);
+                SetDefaultFontChain("CNS1", fixd, "Microsoft JhengHei", "Microsoft JHengHei", "MingLiU", "PMingLiU", "AR PL SungtiL GB", rand_fname);
+                SetDefaultFontChain("Japan1", fixd, "MS Gothic", "Yu Gothic", "Meiryo", "AR PL SungtiL GB", rand_fname);
+                SetDefaultFontChain("Korea1", fixd, "Malgun Gothic Regular", "Malgun Gothic", "Gulim", "AR PL SungtiL GB", rand_fname);
             }
+
+            // set text font for edit-box and combo-box editing, depends on user's display language.
+            List<String?> annot_fonts = new List<String?>(GetAnnotFontCandidates());
+            annot_fonts.Add(rand_fname);
+            SetAnnotFontChain(annot_fonts.ToArray());
+
+            //RDUILib.PDFEditNode.SetDefFont("Times New Roman");
+            //RDUILib.PDFEditNode.SetDefCJKFont("SimSun");
 
             // set annotation text font.
             RDUILib.RDGlobal.LoadStdFont(13, inst_path + "\\Assets\\font\\rdf013");
+        }
+        /// <summary>
+        /// Try fonts in order until one is set as default font of the collection.
+        /// </summary>
+        /// <returns>Name of the font applied, or null if all failed.</returns>
+        static private String? SetDefaultFontChain(String collection, bool fixd, params String?[] names)
+        {
+            foreach (String? name in names)
+            {
+                if (name != null && RDUILib.RDGlobal.SetDefaultFont(collection, name, fixd))
+                {
+                    Debug.WriteLine("RDGlobal: default font [" + collection + "] fixed=" + fixd + " -> " + name);
+                    return name;
+                }
+            }
+            Debug.WriteLine("RDGlobal: no default font for [" + collection + "] fixed=" + fixd);
+            return null;
+        }
+        /// <summary>
+        /// Try fonts in order until one is set as annotation font.
+        /// </summary>
+        /// <returns>Name of the font applied, or null if all failed.</returns>
+        static private String? SetAnnotFontChain(params String?[] names)
+        {
+            foreach (String? name in names)
+            {
+                if (name != null && RDUILib.RDGlobal.SetAnnotFont(name))
+                {
+                    Debug.WriteLine("RDGlobal: annot font -> " + name);
+                    return name;
+                }
+            }
+            Debug.WriteLine("RDGlobal: no annot font");
+            return null;
+        }
+        // Windows display language. Unlike GlobalizationPreferences.Languages,
+        // it does not depend on the order of user's preferred languages list.
+        [DllImport("kernel32.dll")]
+        static private extern ushort GetUserDefaultUILanguage();
+        private const int LANG_CHINESE = 0x04;
+        private const int LANG_JAPANESE = 0x11;
+        private const int LANG_KOREAN = 0x12;
+        private const int SUBLANG_CHINESE_TRADITIONAL = 0x01; // zh-TW
+        private const int SUBLANG_CHINESE_HONGKONG = 0x03;    // zh-HK
+        private const int SUBLANG_CHINESE_MACAU = 0x05;       // zh-MO
+        private const int SUBLANG_CHINESE_HANT = 0x1F;        // zh-Hant
+        /// <summary>
+        /// Annotation font candidates by Windows display language.
+        /// CJK users get CJK fonts first, others get Arimo first (better EUR languages support).
+        /// </summary>
+        static private String[] GetAnnotFontCandidates()
+        {
+            int langid = GetUserDefaultUILanguage();
+            int primary = langid & 0x3FF;
+            int sub = langid >> 10;
+            Debug.WriteLine("RDGlobal: UI language id = 0x" + langid.ToString("X4"));
+
+            if (primary == LANG_CHINESE)
+            {
+                if (sub == SUBLANG_CHINESE_TRADITIONAL || sub == SUBLANG_CHINESE_HONGKONG ||
+                    sub == SUBLANG_CHINESE_MACAU || sub == SUBLANG_CHINESE_HANT)
+                    return new String[] { "Microsoft JhengHei", "Microsoft JHengHei", "MingLiU", "AR PL SungtiL GB", "Arimo" };
+                return new String[] { "SimSun", "Microsoft YaHei", "AR PL SungtiL GB", "Arimo" };
+            }
+            if (primary == LANG_JAPANESE)
+                return new String[] { "MS Gothic", "Yu Gothic", "Meiryo", "AR PL SungtiL GB", "Arimo" };
+            if (primary == LANG_KOREAN)
+                return new String[] { "Malgun Gothic Regular", "Malgun Gothic", "Gulim", "AR PL SungtiL GB", "Arimo" };
+            return new String[] { "Arimo", "AR PL SungtiL GB" };
         }
 
         static public bool init()
         {
             load_data();
             String sver = RDUILib.RDGlobal.GetVersion();//this versioin string, example "20220225".
-            //the key is binding to package "com.radaee.reader", can active version before "20260814"
-            int ret = RDUILib.RDGlobal.Active("755836CA098838C0986F3123ECCAB01F9E84778014E59DA080D972017D2E78BF317E448DEBED21A16608F2884E925C46");
-            return ret == 3;
+            //the key is binding to package "com.radaee.reader", can active version before "20271006"
+            int ret = RDUILib.RDGlobal.Active("21C3B000BAA97ECDCC6365F07BDB48D2EF7537C8B027E4B1442199452C71AC453012C367E1499D7B1906E95C810FF0EB");
+            return ret > 0;
         }
 
         static public bool DrawDash(float[] dash, int dashCount, WriteableBitmap dib) {
