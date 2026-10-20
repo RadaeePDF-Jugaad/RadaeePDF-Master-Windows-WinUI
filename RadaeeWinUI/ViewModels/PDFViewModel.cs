@@ -45,6 +45,7 @@ namespace RadaeeWinUI.ViewModels
         private uint _fillColor = 0x0;
         private float _strokeWidth = 2.0f;
         private bool _isAnnotationMode;
+        private bool _isModified;
         private bool _pointPressed = false;
         private Point? _startPoint = null;
         private Point? _annotStartPoint = null;
@@ -54,6 +55,8 @@ namespace RadaeeWinUI.ViewModels
         private PDFPage? _annotPage = null;
         private int _annotPageIndex = -1;
         private ObservableCollection<AnnotationData> _annotations = new();
+        // Annotations added during the current edit session, removed again on cancel.
+        private readonly List<(int PageIndex, int AnnotIndex)> _pendingAnnots = new();
         // Search functionality fields
         private Dictionary<int, List<SearchResult>> _searchResultsByPage = new();
         private List<SearchResult>? _flatSearchResults = null;
@@ -72,10 +75,8 @@ namespace RadaeeWinUI.ViewModels
             _annotationManager = annotationManager;
             _renderService = renderService;
             _layoutManager = layoutManager;
-            SelectAnnotationToolCommand = new RelayCommand<AnnotationType>(SelectAnnotationTool);
             DeleteAnnotationCommand = new AsyncRelayCommand(DeleteSelectedAnnotationAsync, () => _selectedAnnotation != null);
         }
-        public RelayCommand<AnnotationType> SelectAnnotationToolCommand { get; }
         public AsyncRelayCommand DeleteAnnotationCommand { get; }
         public PDFPageState CurrentState
         {
@@ -273,6 +274,7 @@ namespace RadaeeWinUI.ViewModels
             _activeFormInput.Height = screenHeight;
             _activeFormInput.TextSubmitted += async (s, text) =>
             {
+                MarkModified();
                 await RefreshPageAfterEditAsync(pageIndex);
             };
             _activeFormInput.Dismissed += (s, e) =>
@@ -354,49 +356,199 @@ namespace RadaeeWinUI.ViewModels
                 CurrentPDFView.InvalidatePage(pageIndex);
             }
         }
-        private async void SelectAnnotationTool(AnnotationType type)
+        #region Document Modification
+        /// <summary>
+        /// RDUILib does not report whether a document was changed, so every edit
+        /// performed through this view model marks it (like PDFModified in the UWP reader).
+        /// </summary>
+        public bool IsModified
         {
-            if (type == AnnotationType.Select)
+            get => _isModified;
+            private set => SetProperty(ref _isModified, value);
+        }
+        /// <summary>
+        /// True if the document has changes that were not saved yet,
+        /// including annotations of an edit session that is not confirmed.
+        /// </summary>
+        public bool HasUnsavedChanges => IsModified || HasPendingAnnotations;
+        public void MarkModified()
+        {
+            IsModified = true;
+        }
+        /// <summary>
+        /// Confirms a running annotation edit session and saves the document.
+        /// </summary>
+        /// <returns>false if the document could not be saved</returns>
+        public bool SaveDocument()
+        {
+            if (_currentDocument == null || !_currentDocument.IsOpened)
+                return false;
+            if (IsAnnotationMode)
+                ConfirmAnnotationEdit();
+            if (!_currentDocument.Save())
             {
-                CurrentState = PDFPageState.Selection;
+                Debug.WriteLine("Failed to save PDF document.");
+                return false;
             }
-            else if (type == AnnotationType.Ink
-                || type == AnnotationType.Rectangle
-                || type == AnnotationType.Ellipse
-                || type == AnnotationType.Line
-                || type == AnnotationType.Polygon
-                || type == AnnotationType.TextNote
-                || type == AnnotationType.EditBox)
+            IsModified = false;
+            return true;
+        }
+        #endregion
+
+        #region Annotation Edit Session
+        /// <summary>
+        /// Same workflow as the UWP reader: choosing a tool starts an edit session,
+        /// annotations added during the session are kept by ConfirmAnnotationEdit
+        /// and removed by CancelAnnotationEditAsync.
+        /// </summary>
+        public static bool IsMarkupType(AnnotationType type)
+        {
+            return type == AnnotationType.Highlight
+                || type == AnnotationType.Underline
+                || type == AnnotationType.Strikeout;
+        }
+        public bool HasPendingAnnotations => _pendingAnnots.Count > 0;
+        public void BeginAnnotationEdit(AnnotationType type)
+        {
+            if (_currentDocument == null || type == AnnotationType.None)
+                return;
+            HideFormInput();
+            _pendingAnnots.Clear();
+            CurrentState = IsMarkupType(type) || type == AnnotationType.Select
+                ? PDFPageState.Selection
+                : PDFPageState.Annotation;
+            SelectedAnnotationType = type;
+        }
+        public void ConfirmAnnotationEdit()
+        {
+            if (_pendingAnnots.Count > 0)
+                MarkModified();
+            _pendingAnnots.Clear();
+            EndAnnotationEdit();
+        }
+        public async Task CancelAnnotationEditAsync()
+        {
+            var modifiedPages = new HashSet<int>();
+            if (_currentDocument != null)
             {
-                if (SelectedAnnotationType != type)
+                // Remove in reverse order so the recorded indices stay valid.
+                for (int i = _pendingAnnots.Count - 1; i >= 0; i--)
                 {
-                    SelectedAnnotationType = type;
-                    CurrentState = PDFPageState.Annotation;
-                }
-                else
-                {
-                    SelectedAnnotationType = AnnotationType.None;
-                    CurrentState = PDFPageState.Normal;
+                    var (pageIndex, annotIndex) = _pendingAnnots[i];
+                    PDFPage page = _currentDocument.GetPage(pageIndex);
+                    if (page == null)
+                        continue;
+                    page.ObjsStart();
+                    PDFAnnot annot = page.GetAnnot(annotIndex);
+                    if (annot != null && annot.RemoveFromPage())
+                        modifiedPages.Add(pageIndex);
+                    else
+                        Debug.WriteLine($"Failed to roll back annotation {annotIndex} on page {pageIndex}");
+                    page.Close();
                 }
             }
-            else if (type == AnnotationType.Highlight
-                || type == AnnotationType.Strikeout
-                || type == AnnotationType.Underline)
+            _pendingAnnots.Clear();
+            EndAnnotationEdit();
+            foreach (int pageIndex in modifiedPages)
             {
-                if (_pdfSel == null || _currentState != PDFPageState.Selection)
-                    return;
-                PDFPage page = _pdfSel.GetPage();
-                int markupType = 0;
-                if (type == AnnotationType.Underline)
-                    markupType = 1;
-                else if (type == AnnotationType.Strikeout)
-                    markupType = 2;
-                page.AddAnnotMarkup(_pdfSel.Index1, _pdfSel.Index2, _strokeColor, markupType);
-                ClearAnnotationCanvas();
-                await RefreshPageAfterEditAsync(_pdfSel.PageIndex);
-                _pdfSel.Clear();
+                await RefreshPageAfterEditAsync(pageIndex);
             }
         }
+        private void EndAnnotationEdit()
+        {
+            ResetPointerTracking();
+            ClearAnnotationCanvas();
+            SelectedAnnotationType = AnnotationType.None;
+            CurrentState = PDFPageState.Normal;
+        }
+        private void ResetPointerTracking()
+        {
+            _pointPressed = false;
+            _pdfSel?.Clear();
+            _pdfSel = null;
+            _annotPage?.Close();
+            _annotPage = null;
+            _annotPageIndex = -1;
+            _startPoint = null;
+            _annotStartPoint = null;
+            _currentInk = null;
+            _inkScreenPoints.Clear();
+            OnPropertyChanged(nameof(HasTextSelection));
+        }
+        public bool HasTextSelection => _pdfSel != null && _pdfSel.Index1 >= 0 && _pdfSel.Index2 >= 0;
+        public string? GetSelectedText()
+        {
+            return HasTextSelection ? _pdfSel!.GetSelString() : null;
+        }
+        public void ClearTextSelection()
+        {
+            if (_pdfSel == null)
+                return;
+            int pageIndex = _pdfSel.PageIndex;
+            _pdfSel.Clear();
+            _pdfSel = null;
+            ClearAnnotationCanvas(pageIndex);
+            OnPropertyChanged(nameof(HasTextSelection));
+        }
+        private void DrawTextSelection()
+        {
+            if (_pdfSel == null || CurrentPDFView == null || _currentDocument == null)
+                return;
+            int pageIndex = _pdfSel.PageIndex;
+            ClearAnnotationCanvas(pageIndex);
+            var canvas = CurrentPDFView.GetPageAnnotationCanvas(pageIndex);
+            if (canvas != null)
+            {
+                _pdfSel.DrawSel(canvas, CurrentPDFView.PDFScale, _currentDocument.GetPageHeight(pageIndex));
+            }
+        }
+        private static int GetAnnotCount(PDFPage page)
+        {
+            // RDUILib does not expose the annotation count, probe by index instead.
+            int count = 0;
+            while (page.GetAnnot(count) != null)
+                count++;
+            return count;
+        }
+        /// <summary>
+        /// Records the annotations appended to the page since countBefore.
+        /// </summary>
+        /// <returns>true if at least one annotation was added</returns>
+        private bool TrackNewAnnots(PDFPage page, int pageIndex, int countBefore)
+        {
+            int countAfter = GetAnnotCount(page);
+            for (int i = countBefore; i < countAfter; i++)
+            {
+                _pendingAnnots.Add((pageIndex, i));
+            }
+            return countAfter > countBefore;
+        }
+        /// <summary>
+        /// Adds a text markup annotation for the current selection and clears the selection.
+        /// </summary>
+        public async Task ApplyMarkupToSelectionAsync(AnnotationType type)
+        {
+            if (_pdfSel == null || !HasTextSelection)
+                return;
+            int markupType = type switch
+            {
+                AnnotationType.Underline => 1,
+                AnnotationType.Strikeout => 2,
+                AnnotationType.Squiggly => 4,
+                _ => 0
+            };
+            PDFPage page = _pdfSel.GetPage();
+            int pageIndex = _pdfSel.PageIndex;
+            int countBefore = GetAnnotCount(page);
+            bool added = page.AddAnnotMarkup(_pdfSel.Index1, _pdfSel.Index2, _strokeColor, markupType)
+                && TrackNewAnnots(page, pageIndex, countBefore);
+            ClearTextSelection();
+            if (added)
+            {
+                await RefreshPageAfterEditAsync(pageIndex);
+            }
+        }
+        #endregion
         public async Task LoadAnnotationsForPageAsync(PDFPage page, int pageIndex)
         {
             var annotations = await _annotationManager.GetAnnotationsOnPageAsync(page, pageIndex);
@@ -465,6 +617,7 @@ namespace RadaeeWinUI.ViewModels
                 bool success = await _annotationManager.DeleteAnnotationAsync(_selectedAnnotObject);
                 if (success)
                 {
+                    MarkModified();
                     if (_selectedAnnotation != null)
                     {
                         Annotations.Remove(_selectedAnnotation);
@@ -616,6 +769,7 @@ namespace RadaeeWinUI.ViewModels
         public void OnDocumentLoaded(PDFDoc doc)
         {
             _currentDocument = doc;
+            IsModified = false;
             if (CurrentPDFView != null && doc != null && doc.IsOpened)
             {
                 CurrentPDFView.PDFVOpen(doc);
@@ -623,6 +777,11 @@ namespace RadaeeWinUI.ViewModels
         }
         public void OnDocumentClosed()
         {
+            _pendingAnnots.Clear();
+            ResetPointerTracking();
+            SelectedAnnotationType = AnnotationType.None;
+            CurrentState = PDFPageState.Normal;
+            IsModified = false;
             HideFormInput();
             ClearAnnotationCanvas();
             CancelCurrentSearch();
@@ -649,11 +808,11 @@ namespace RadaeeWinUI.ViewModels
                     PDFPage page = _currentDocument.GetPage(_annotPageIndex);
                     if (page != null)
                     {
-                        if (_pdfSel != null)
-                            _pdfSel.Clear();
+                        ClearTextSelection();
                         _pdfSel = new PDFSel(page, e.PageIndex);
                         _annotStartPoint = new Point((int)e.PDFX, (int)e.PDFY);
                         _pdfSel.SetSel(e.PDFX, e.PDFY, e.PDFX, e.PDFY);
+                        OnPropertyChanged(nameof(HasTextSelection));
                     }
                     break;
                 case PDFPageState.HandTool:
@@ -860,26 +1019,37 @@ namespace RadaeeWinUI.ViewModels
                 if (_pdfSel != null && _annotPageIndex >= 0)
                 {
                     _pdfSel.SetSel(_annotStartPoint.Value.X, _annotStartPoint.Value.Y, e.PDFX, e.PDFY);
-                    ClearAnnotationCanvas(_annotPageIndex);
-                    var canvas = CurrentPDFView.GetPageAnnotationCanvas(_annotPageIndex);
-                    if (canvas != null)
-                    {
-                        float scale = CurrentPDFView.PDFScale;
-                        _pdfSel.DrawSel(canvas, scale, _currentDocument.GetPageHeight(e.PageIndex));
-                    }
+                    DrawTextSelection();
                 }
             }
         }
         public async void HandlePointerReleased(PDFPointerEventArgs e)
         {
             _pointPressed = false;
+            if (CurrentState == PDFPageState.Selection)
+            {
+                if (IsMarkupType(SelectedAnnotationType))
+                {
+                    await ApplyMarkupToSelectionAsync(SelectedAnnotationType);
+                }
+                else
+                {
+                    // Text selection mode: keep the selection until the user picks an action.
+                    DrawTextSelection();
+                    OnPropertyChanged(nameof(HasTextSelection));
+                }
+                return;
+            }
             if (_currentDocument == null || CurrentPDFView == null || _startPoint == null || _annotStartPoint == null || !_currentDocument.IsOpened)
                 return;
-            PDFPage page = _currentDocument.GetPage(e.PageIndex);
             if (_annotPage == null)
             {
                 return;
             }
+            // Take ownership of the page so a cancel during the awaits below cannot close it.
+            PDFPage annotPage = _annotPage;
+            _annotPage = null;
+            int pageIndex = _annotPageIndex;
             Point endPoint;
             if (e.PageIndex == _annotPageIndex)
             {
@@ -893,36 +1063,32 @@ namespace RadaeeWinUI.ViewModels
             float top = Math.Min(_annotStartPoint.Value.Y, endPoint.Y);
             float width = Math.Abs(endPoint.X - _annotStartPoint.Value.X);
             float height = Math.Abs(endPoint.Y - _annotStartPoint.Value.Y);
-            PDFAnnot? annot = null;
+            bool annotAdded = false;
             if (CurrentState == PDFPageState.Annotation)
             {
-                _annotPage.ObjsStart();
+                annotPage.ObjsStart();
+                int countBefore = GetAnnotCount(annotPage);
+                bool hasArea = width > 1 && height > 1;
                 switch (SelectedAnnotationType)
                 {
                     case AnnotationType.Rectangle:
-                        annot = await AddRectangleAsync(_annotPage, left, top, width, height);
+                        if (hasArea)
+                            await AddRectangleAsync(annotPage, left, top, width, height);
                         break;
                     case AnnotationType.Ellipse:
-                        annot = await AddEllipseAsync(_annotPage, left, top, width, height);
+                        if (hasArea)
+                            await AddEllipseAsync(annotPage, left, top, width, height);
                         break;
                     case AnnotationType.Line:
-                        annot = await AddLineAsync(_annotPage, _annotStartPoint.Value.X, _annotStartPoint.Value.Y, endPoint.X, endPoint.Y);
+                        if (width > 1 || height > 1)
+                            await AddLineAsync(annotPage, _annotStartPoint.Value.X, _annotStartPoint.Value.Y, endPoint.X, endPoint.Y);
                         break;
                     case AnnotationType.Polygon:
                         //await AddPolygonAsync(page, left, top, width, height);
                         break;
                     case AnnotationType.EditBox:
-                        if (width > 1 && height > 1)
-                        {
-                            string fieldName = GenerateFieldName();
-                            var editBoxAnnot = await AddFieldEditboxAsync(_annotPage, left, top, width, height, fieldName);
-                            if (editBoxAnnot != null)
-                            {
-                                await RefreshPageAfterEditAsync(_annotPageIndex);
-                                SelectedAnnotationType = AnnotationType.None;
-                                CurrentState = PDFPageState.Normal;
-                            }
-                        }
+                        if (hasArea)
+                            await AddFieldEditboxAsync(annotPage, left, top, width, height, GenerateFieldName());
                         break;
                     case AnnotationType.Ink:
                         if (_currentInk != null)
@@ -937,27 +1103,23 @@ namespace RadaeeWinUI.ViewModels
                                 float pdfY = CurrentPDFView.ToPDFY(e.ScreenY, _annotPageIndex);
                                 _currentInk.Up(pdfX, pdfY);
                             }
-                            if (await AddInkAsync(_annotPage, _currentInk))
-                            {
-                                await RefreshPageAfterEditAsync(_annotPageIndex);
-                            }
+                            await AddInkAsync(annotPage, _currentInk);
                             _currentInk = null;
-                            _annotPageIndex = -1;
                             _inkScreenPoints.Clear();
                         }
                         break;
                     default:
                         break;
                 }
+                annotAdded = TrackNewAnnots(annotPage, pageIndex, countBefore);
             }
-            if (annot != null)
+            if (annotAdded)
             {
-                await RefreshPageAfterEditAsync(_annotPageIndex);
+                await RefreshPageAfterEditAsync(pageIndex);
             }
             ClearAnnotationCanvas();
-            _annotPage.Close();
+            annotPage.Close();
             _startPoint = null;
-            _annotPage = null;
             _annotPageIndex = -1;
             _annotStartPoint = null;
         }
@@ -1087,11 +1249,14 @@ namespace RadaeeWinUI.ViewModels
                                 if (page != null)
                                 {
                                     page.ObjsStart();
-                                    if (page.AddAnnotTextNote(pdfX, pdfY))
+                                    int countBefore = GetAnnotCount(page);
+                                    bool added = page.AddAnnotTextNote(pdfX, pdfY)
+                                        && TrackNewAnnots(page, e.PageIndex, countBefore);
+                                    page.Close();
+                                    if (added)
                                     {
                                         await RefreshPageAfterEditAsync(e.PageIndex);
                                     }
-                                    page.Close();
                                 }
                             }
                             break;
@@ -1117,6 +1282,7 @@ namespace RadaeeWinUI.ViewModels
                             page.ObjsStart();
                             annot.PopupSubject = dialog.NoteSubject;
                             annot.PopupText = dialog.NoteContent;
+                            MarkModified();
                             page.Close();
                             if (CurrentPDFView != null && _currentDocument != null)
                             {
@@ -1129,6 +1295,7 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 page.ObjsStart();
                                 annot.RemoveFromPage();
+                                MarkModified();
                                 await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
@@ -1184,6 +1351,7 @@ namespace RadaeeWinUI.ViewModels
                             annot.LineStyle = dialog.LineStyle;
                             annot.StrokeColor = (int)dialog.StrokeColor;
                             annot.StrokeWidth = dialog.StrokeWidth;
+                            MarkModified();
                             await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                             page.Close();
                         }
@@ -1193,6 +1361,7 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 page.ObjsStart();
                                 annot.RemoveFromPage();
+                                MarkModified();
                                 await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
@@ -1212,6 +1381,7 @@ namespace RadaeeWinUI.ViewModels
                             annot.StrokeColor = (int)dialog.StrokeColor;
                             annot.FillColor = (int)dialog.FillColor;
                             annot.StrokeWidth = dialog.StrokeWidth;
+                            MarkModified();
                             await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                             page.Close();
                         }
@@ -1221,6 +1391,7 @@ namespace RadaeeWinUI.ViewModels
                             {
                                 page.ObjsStart();
                                 annot.RemoveFromPage();
+                                MarkModified();
                                 await RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                 page.Close();
                             }
@@ -1257,11 +1428,13 @@ namespace RadaeeWinUI.ViewModels
                                     {
                                         //Check box
                                         annot.SetCheckValue(status == 0);
+                                        MarkModified();
                                     }
                                     else if (status == 2 || status == 3)
                                     {
                                         //Radio box 
                                         annot.SetRadio();
+                                        MarkModified();
                                     }
                                     RefreshPageAfterEditAsync(CurrentPDFView.CurrentPageIndex);
                                     break;

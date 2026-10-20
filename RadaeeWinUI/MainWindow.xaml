@@ -26,29 +26,127 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <CommandBar Grid.Row="0" DefaultLabelPosition="Right">
-            <AppBarButton Icon="OpenFile" Label="Open" Click="OpenDocument_Click"/>
-            <AppBarSeparator/>
-            <AppBarButton Icon="ZoomIn" Label="Zoom In" Click="ZoomIn_Click"/>
-            <AppBarButton Icon="ZoomOut" Label="Zoom Out" Click="ZoomOut_Click"/>
-            <AppBarButton Icon="Zoom" Label="Fit Width" Click="FitWidth_Click"/>
-            <AppBarButton x:Name="BtnOutline" Icon="OutlineStar" Label="Outline" Click="Outline_Click" Visibility="Collapsed"/>
-            <AppBarButton x:Name="BtnAttachment" Icon="Attach" Label="Attachment" Click="Attachment_Click" Visibility="Collapsed"/>
-            <AppBarSeparator/>
-            <AppBarButton x:Name="BtnSearch" Icon="Find" Label="Search" Click="Search_Click"/>
-            <AppBarButton Label="View Mode">
+        <!-- Main command bar: features are grouped into drop-down menus (same layout as the UWP reader). -->
+        <CommandBar x:Name="MainCommandBar" Grid.Row="0" DefaultLabelPosition="Right" VerticalContentAlignment="Center">
+            <CommandBar.Content>
+                <TextBlock x:Name="DocumentNameText"
+                           Margin="16,0,0,0"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+            </CommandBar.Content>
+
+            <AppBarButton Icon="OpenFile" Label="Open" Click="OpenDocument_Click">
+                <AppBarButton.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="O" Modifiers="Control"/>
+                </AppBarButton.KeyboardAccelerators>
+            </AppBarButton>
+            <AppBarSeparator x:Name="DocumentCommandsSeparator"/>
+
+            <AppBarButton x:Name="BtnView" Icon="View" Label="View">
                 <AppBarButton.Flyout>
-                    <MenuFlyout>
-                        <MenuFlyoutItem Text="Single Page" Click="ViewMode_SinglePage_Click"/>
-                        <MenuFlyoutItem Text="Vertical Continuous" Click="ViewMode_VerticalContinuous_Click"/>
-                        <MenuFlyoutItem Text="Horizontal Continuous" Click="ViewMode_HorizontalContinuous_Click"/>
-                        <MenuFlyoutItem Text="Dual Page" Click="ViewMode_DualPage_Click"/>
+                    <MenuFlyout Placement="Bottom">
+                        <RadioMenuFlyoutItem x:Name="ViewModeSinglePage" Text="Single Page" Tag="SinglePage" GroupName="ViewMode" Click="ViewMode_Click"/>
+                        <RadioMenuFlyoutItem x:Name="ViewModeVertical" Text="Vertical Continuous" Tag="VerticalContinuous" GroupName="ViewMode" Click="ViewMode_Click"/>
+                        <RadioMenuFlyoutItem x:Name="ViewModeHorizontal" Text="Horizontal Continuous" Tag="HorizontalContinuous" GroupName="ViewMode" Click="ViewMode_Click"/>
+                        <RadioMenuFlyoutItem x:Name="ViewModeDualPage" Text="Dual Page" Tag="DualPageContinuous" GroupName="ViewMode" Click="ViewMode_Click"/>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Icon="ZoomIn" Text="Zoom In" Click="ZoomIn_Click"/>
+                        <MenuFlyoutItem Icon="ZoomOut" Text="Zoom Out" Click="ZoomOut_Click"/>
+                        <MenuFlyoutItem Text="Fit Width" Click="FitWidth_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE9A6;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+
+            <AppBarButton x:Name="BtnTools" Icon="Repair" Label="Tools">
+                <AppBarButton.Flyout>
+                    <MenuFlyout Placement="Bottom">
+                        <MenuFlyoutItem x:Name="MenuSearch" Icon="Find" Text="Search" Click="Search_Click">
+                            <MenuFlyoutItem.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="F" Modifiers="Control"/>
+                            </MenuFlyoutItem.KeyboardAccelerators>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem x:Name="MenuOutline" Text="Outline" Click="Outline_Click" Visibility="Collapsed">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8FD;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem x:Name="MenuAttachment" Icon="Attach" Text="Attachments" Click="Attachment_Click" Visibility="Collapsed"/>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+
+            <AppBarButton x:Name="BtnAnnotations" Icon="Edit" Label="Annotations">
+                <AppBarButton.Flyout>
+                    <MenuFlyout Placement="Bottom">
+                        <MenuFlyoutItem Text="Ink" Tag="Ink" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE76D;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Note" Tag="TextNote" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE70B;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Line" Tag="Line" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE738;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Rectangle" Tag="Rectangle" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE739;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Ellipse" Tag="Ellipse" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xEA3A;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="Text Selection" Tag="Select" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8B3;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Highlight" Tag="Highlight" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE7E6;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Underline" Tag="Underline" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8DC;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Strikeout" Tag="Strikeout" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xEDE0;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+
+            <AppBarButton x:Name="BtnFields" Icon="Page2" Label="Fields">
+                <AppBarButton.Flyout>
+                    <MenuFlyout Placement="Bottom">
+                        <MenuFlyoutItem Text="Edit Box" Tag="EditBox" Click="AnnotationTool_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8AC;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                     </MenuFlyout>
                 </AppBarButton.Flyout>
             </AppBarButton>
         </CommandBar>
 
-        <controls:AnnotationToolbar x:Name="AnnotationToolbar" Grid.Row="1" Visibility="Collapsed"/>
+        <!-- Replaces the main command bar while an annotation tool is active. -->
+        <controls:AnnotationToolbar x:Name="AnnotationToolbar" Grid.Row="0" Visibility="Collapsed"/>
         <controls:SearchToolbar x:Name="SearchToolbar" Grid.Row="1" Visibility="Collapsed"/>
 
         <Grid Grid.Row="2">

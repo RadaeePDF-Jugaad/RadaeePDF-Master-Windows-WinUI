@@ -5,44 +5,99 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:models="using:RadaeeWinUI.Models"
     mc:Ignorable="d">
 
-    <StackPanel Orientation="Horizontal" Spacing="8" Padding="8">
-        <TextBlock Text="Annotation Tools:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+    <!-- Edit mode command bar: replaces the main command bar while an annotation tool is active,
+         the user confirms (Done) or discards (Cancel) everything added in this session. -->
+    <CommandBar DefaultLabelPosition="Right" IsDynamicOverflowEnabled="False" VerticalContentAlignment="Center">
+        <CommandBar.Content>
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="16,0,0,0" Height="48">
+                <FontIcon x:Name="ToolIcon" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ToolNameText" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ToolHintText"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </CommandBar.Content>
 
-        <Button Content="Select" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Select}" ToolTipService.ToolTip="Select text"/>
-        <Button Content="Highlight" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Highlight}" ToolTipService.ToolTip="Highlight text"/>
-        <Button Content="Underline" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Underline}" ToolTipService.ToolTip="Underline text"/>
-        <Button Content="Strikeout" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Strikeout}" ToolTipService.ToolTip="Strikeout text"/>
-        
-        <Border Width="1" Background="Gray" Margin="4,0"/>
-        <Button Content="Text Note" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.TextNote}" ToolTipService.ToolTip="Add text note"/>
-        <Button Content="Rectangle" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Rectangle}" ToolTipService.ToolTip="Draw rectangle"/>
-        <Button Content="Ellipse" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Ellipse}" ToolTipService.ToolTip="Draw ellipse"/>
-        <Button Content="Line" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Line}" ToolTipService.ToolTip="Draw line"/>
-        <Button Content="Ink" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.Ink}" ToolTipService.ToolTip="Freehand drawing"/>
+        <AppBarButton x:Name="ColorButton" Label="Color" ToolTipService.ToolTip="Annotation color">
+            <AppBarButton.Icon>
+                <FontIcon x:Name="ColorSwatch" Glyph="&#xE91F;" Foreground="#FFFF0000"/>
+            </AppBarButton.Icon>
+            <AppBarButton.Flyout>
+                <MenuFlyout x:Name="ColorMenu" Placement="Bottom">
+                    <RadioMenuFlyoutItem Text="Red" Tag="#FFFF0000" GroupName="AnnotColor" IsChecked="True" Click="ColorItem_Click">
+                        <RadioMenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE91F;" Foreground="#FFFF0000"/>
+                        </RadioMenuFlyoutItem.Icon>
+                    </RadioMenuFlyoutItem>
+                    <RadioMenuFlyoutItem Text="Blue" Tag="#FF0000FF" GroupName="AnnotColor" Click="ColorItem_Click">
+                        <RadioMenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE91F;" Foreground="#FF0000FF"/>
+                        </RadioMenuFlyoutItem.Icon>
+                    </RadioMenuFlyoutItem>
+                    <RadioMenuFlyoutItem Text="Green" Tag="#FF00FF00" GroupName="AnnotColor" Click="ColorItem_Click">
+                        <RadioMenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE91F;" Foreground="#FF00FF00"/>
+                        </RadioMenuFlyoutItem.Icon>
+                    </RadioMenuFlyoutItem>
+                    <RadioMenuFlyoutItem Text="Yellow" Tag="#FFFFFF00" GroupName="AnnotColor" Click="ColorItem_Click">
+                        <RadioMenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE91F;" Foreground="#FFFFFF00"/>
+                        </RadioMenuFlyoutItem.Icon>
+                    </RadioMenuFlyoutItem>
+                    <RadioMenuFlyoutItem Text="Black" Tag="#FF000000" GroupName="AnnotColor" Click="ColorItem_Click">
+                        <RadioMenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE91F;" Foreground="#FF000000"/>
+                        </RadioMenuFlyoutItem.Icon>
+                    </RadioMenuFlyoutItem>
+                </MenuFlyout>
+            </AppBarButton.Flyout>
+        </AppBarButton>
 
-        <Border Width="1" Background="Gray" Margin="4,0"/>
-        <Button Content="Edit Box" Command="{x:Bind ViewModel.SelectAnnotationToolCommand}" CommandParameter="{x:Bind models:AnnotationType.EditBox}" ToolTipService.ToolTip="Add form text field"/>
-        
-        <Border Width="1" Background="Gray" Margin="4,0"/>
-        
-        <TextBlock Text="Color:" VerticalAlignment="Center" Margin="8,0,4,0"/>
-        <ComboBox x:Name="ColorPicker" SelectedIndex="0" Width="100">
-            <ComboBoxItem Content="Red" Tag="#FFFF0000"/>
-            <ComboBoxItem Content="Blue" Tag="#FF0000FF"/>
-            <ComboBoxItem Content="Green" Tag="#FF00FF00"/>
-            <ComboBoxItem Content="Yellow" Tag="#FFFFFF00"/>
-            <ComboBoxItem Content="Black" Tag="#FF000000"/>
-        </ComboBox>
-        
-        <TextBlock Text="Width:" VerticalAlignment="Center" Margin="8,0,4,0"/>
-        <Slider x:Name="StrokeWidthSlider" Minimum="1" Maximum="10" Value="{x:Bind ViewModel.StrokeWidth, Mode=TwoWay}" Width="100" VerticalAlignment="Center"/>
-        <TextBlock Text="{x:Bind StrokeWidthSlider.Value, Mode=OneWay}" VerticalAlignment="Center" Width="30"/>
-        
-        <Border Width="1" Background="Gray" Margin="4,0"/>
-        
-        <Button Content="Delete" Command="{x:Bind ViewModel.DeleteAnnotationCommand}" ToolTipService.ToolTip="Delete selected annotation"/>
-    </StackPanel>
+        <!-- Text selection actions, enabled once some text is selected (same options as DlgMarkup in the UWP reader). -->
+        <AppBarSeparator x:Name="TextActionsSeparator"/>
+        <AppBarButton x:Name="CopyTextButton" Icon="Copy" Label="Copy" Click="CopyText_Click" ToolTipService.ToolTip="Copy the selected text"/>
+        <AppBarButton x:Name="HighlightButton" Label="Highlight" Tag="Highlight" Click="TextMarkup_Click" ToolTipService.ToolTip="Highlight the selected text">
+            <AppBarButton.Icon>
+                <FontIcon Glyph="&#xE7E6;"/>
+            </AppBarButton.Icon>
+        </AppBarButton>
+        <AppBarButton x:Name="UnderlineButton" Label="Underline" Tag="Underline" Click="TextMarkup_Click" ToolTipService.ToolTip="Underline the selected text">
+            <AppBarButton.Icon>
+                <FontIcon Glyph="&#xE8DC;"/>
+            </AppBarButton.Icon>
+        </AppBarButton>
+        <AppBarButton x:Name="StrikeoutButton" Label="Strikeout" Tag="Strikeout" Click="TextMarkup_Click" ToolTipService.ToolTip="Strike out the selected text">
+            <AppBarButton.Icon>
+                <FontIcon Glyph="&#xEDE0;"/>
+            </AppBarButton.Icon>
+        </AppBarButton>
+        <AppBarButton x:Name="SquigglyButton" Label="Squiggly" Tag="Squiggly" Click="TextMarkup_Click" ToolTipService.ToolTip="Add a squiggly underline to the selected text">
+            <AppBarButton.Icon>
+                <FontIcon Glyph="&#xE8D2;"/>
+            </AppBarButton.Icon>
+        </AppBarButton>
+
+        <AppBarElementContainer x:Name="StrokeWidthPanel" VerticalContentAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="8" Padding="8,0">
+                <TextBlock Text="Width" VerticalAlignment="Center"/>
+                <Slider x:Name="StrokeWidthSlider"
+                        Minimum="1" Maximum="10" StepFrequency="1"
+                        Width="120"
+                        VerticalAlignment="Center"
+                        ValueChanged="StrokeWidthSlider_ValueChanged"/>
+                <TextBlock x:Name="StrokeWidthText" Width="20" VerticalAlignment="Center"/>
+            </StackPanel>
+        </AppBarElementContainer>
+
+        <AppBarSeparator x:Name="PropertySeparator"/>
+
+        <AppBarButton Icon="Cancel" Label="Cancel" Click="Cancel_Click" ToolTipService.ToolTip="Discard the annotations added in this session (Esc)">
+            <AppBarButton.KeyboardAccelerators>
+                <KeyboardAccelerator Key="Escape"/>
+            </AppBarButton.KeyboardAccelerators>
+        </AppBarButton>
+        <AppBarButton Icon="Accept" Label="Done" Click="Done_Click" ToolTipService.ToolTip="Keep the annotations added in this session"/>
+    </CommandBar>
 </UserControl>

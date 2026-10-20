@@ -16,6 +16,11 @@ namespace RadaeeWinUI.Controls
         private PDFDoc? _document;
         private ObservableCollection<AttachmentData> _attachments;
 
+        /// <summary>
+        /// Raised after the dialog changed the document, e.g. deleted an attachment.
+        /// </summary>
+        public event EventHandler? DocumentModified;
+
         public AttachmentListDialog()
         {
             InitializeComponent();
@@ -106,9 +111,16 @@ namespace RadaeeWinUI.Controls
                 
                 if (result == ContentDialogResult.Primary)
                 {
-                    _document.DelEFData(index);
+                    if (_document.DelEFData(index))
+                    {
+                        DocumentModified?.Invoke(this, EventArgs.Empty);
+                        ShowStatus("Attachment deleted successfully.", InfoBarSeverity.Success);
+                    }
+                    else
+                    {
+                        ShowStatus("Failed to delete the attachment.", InfoBarSeverity.Error);
+                    }
                     LoadAttachments(_document);
-                    ShowStatus("Attachment deleted successfully.", InfoBarSeverity.Success);
                 }
                 
                 await this.ShowAsync();
