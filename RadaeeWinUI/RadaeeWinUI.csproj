@@ -102,6 +102,10 @@
 
     <CsWinRTInputs Include="..\$(Platform)\$(Configuration)\RDUICom\RDUILib.winmd" />
 
+    <ProjectReference Include="..\RDUICom\RDUICom.vcxproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+
     <Reference Include="RDUILib">
       <HintPath>..\..\RadaeeWinUI\RDUICom\x64\Debug\Merged\RDUILib.winmd</HintPath>
       <IsWinMDFile>true</IsWinMDFile>
