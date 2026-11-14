@@ -1,11 +1,6 @@
 # RadaeePDF SDK Master for Windows (WinUI 3)
 <img src="https://www.radaeepdf.com/wp-content/uploads/2024/08/solo_butterly_midres.png" style="width:100px;"> 
 
-> **DISCLAIMER (BETA)**  
-> This repository contains the **WinUI 3** version of the RadaeePDF Windows demo and is currently in **BETA**.  
-> The API surface, project structure, and some features are subject to change without notice.  
-> Do **not** use this version in production without thoroughly testing it in your own environment.
-
 RadaeePDF SDK is a powerful, native PDF rendering and manipulation library for Android, iOS, and Windows UI applications. Built from true native C++ code, it provides exceptional performance and a comprehensive set of features for working with PDF documents.
 
 ## About RadaeePDF
